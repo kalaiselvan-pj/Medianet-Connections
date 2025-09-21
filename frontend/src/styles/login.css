@@ -4,7 +4,7 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: url('../assets/loginpagebackground.png.png') no-repeat center center;
+  background: url('../assets/loginpagebackground.png') no-repeat center center;
   background-size: cover;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
