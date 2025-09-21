@@ -1,215 +1,151 @@
-// import React, { useState } from 'react';
-// import '../styles/login.css';
-// import medianetLogo from '../assets/medianet-logo2.png';
-// import { FaEnvelope, FaEye, FaEyeSlash } from 'react-icons/fa'; // import icons
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "../styles/login.css";
+import medianetLogo from "../assets/medianet_transparent_logo.png";
+import { FaEnvelope, FaEye, FaEyeSlash, FaLock, FaExclamationCircle } from "react-icons/fa";
+import SHA256 from "crypto-js/sha256";
+import ForgotPassword from "./passwordForgot";
+import { useAuth } from "../App";
+import { showToast } from "./common/toaster";
+import 'react-toastify/dist/ReactToastify.css';
 
-// const Login = () => {
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [forgotPassword, setForgotPassword] = useState(false);
-//   const [resetEmail, setResetEmail] = useState('');
-//   const [showPassword, setShowPassword] = useState(false); // for toggling password visibility
-
-//   const handleSubmit = (e) => {
-//     e.preventDefault();
-//     console.log('Email:', email, 'Password:', password);
-//   };
-
-//   const handleReset = (e) => {
-//     e.preventDefault();
-//     console.log('Reset link sent to:', resetEmail);
-//     alert(`Reset link sent to: ${resetEmail}`);
-//     setResetEmail('');
-//     setForgotPassword(false);
-//   };
-
-//   return (
-//     <div className="login-container">
-//       <form onSubmit={forgotPassword ? handleReset : handleSubmit} className="login-form">
-//         <img src={medianetLogo} alt="Medianet Logo" className="login-logo" />
-
-//         {!forgotPassword ? (
-//           <>
-//             <h2>Welcome Back</h2>
-
-//             <div className={`input-wrapper ${email ? 'filled' : ''}`}>
-//               <FaEnvelope className="input-icon" />
-//               <input
-//               label="Outlined"
-//                 type="email"
-//                 placeholder="Email*"
-//                 value={email}
-//                 onChange={(e) => setEmail(e.target.value)}
-//                 required
-//               />
-//             </div>
-
-//             <div className={`input-wrapper ${password ? 'filled' : ''}`}>
-//               <input
-//                 type={showPassword ? 'text' : 'password'}
-//                 placeholder="Password *"
-//                 value={password}
-//                 onChange={(e) => setPassword(e.target.value)}
-//                 required
-//               />
-//               {showPassword ? (
-//                 <FaEyeSlash className="input-icon password-icon" onClick={() => setShowPassword(false)} />
-//               ) : (
-//                 <FaEye className="input-icon password-icon" onClick={() => setShowPassword(true)} />
-//               )}
-//             </div>
-
-//             <button type="submit">Login</button>
-//             <p className="forgot-password" onClick={() => setForgotPassword(true)}>
-//               Forgot Password?
-//             </p>
-//           </>
-//         ) : (
-//           <>
-//             <h2>Forgot Password</h2>
-//             <p>Enter your email address to receive a password reset link.</p>
-//             <div className="input-wrapper">
-//                 <label htmlFor="resetEmail" className="input-label">Email</label>
-//               <FaEnvelope className="input-icon2" />
-//               <input
-//                 type="email"
-//                 placeholder="Email"
-//                 value={resetEmail}
-//                 onChange={(e) => setResetEmail(e.target.value)}
-//                 required
-//               />
-//             </div>
-//             <button type="submit">Send Reset Link</button>
-//             <p className="forgot-password" onClick={() => setForgotPassword(false)}>
-//               Back to Login
-//             </p>
-//           </>
-//         )}
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default Login;
-
-
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import '../styles/login.css';
-import medianetLogo from '../assets/medianet-logo2.png';
-import { FaEnvelope, FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [forgotPassword, setForgotPassword] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [openForgot, setOpenForgot] = useState(false);
+  const [errors, setErrors] = useState({});
 
-  const navigate = useNavigate(); // for navigation after login
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  // Validation function
+  const validateForm = () => {
+    const newErrors = {};
+    if (!email.trim()) newErrors.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = "Please enter a valid email address";
+
+    if (!password.trim()) newErrors.password = "Password is required";
+    else if (password.length < 6) newErrors.password = "Password must be at least 6 characters";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrors({});
+    if (!validateForm()) return;
 
-    // Call backend API
     try {
-      const response = await fetch('http://localhost:5000/statistics/login', { // replace with your API URL
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password }) // send email & password to backend
+      const hashedPassword = SHA256(password).toString();
+
+      const response = await fetch("http://localhost:5000/statistics/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: hashedPassword }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
-        if (data.success) {
-          // Login successful
-          localStorage.setItem('token', data.token); // optional: save token
-          navigate('/dashboard'); // redirect to Dashboard
-        } else {
-          alert('Invalid email or password');
-        }
+      if (response.ok && data.success) {
+        // Toast for success
+        showToast("Login successful!", "success");
+
+        // Login via context
+        login(data.user, data.token);
+
+        // Navigate to dashboard
+        navigate("/dashboard", { replace: true });
       } else {
-        alert('Error: ' + data.message);
+        // handle API errors and show toasts
+        if (response.status === 401) {
+          setErrors({
+            general: "Invalid email or password. Please check your credentials.",
+          });
+          showToast("Invalid email or password.", "error");
+        } else if (response.status === 404) {
+          setErrors({ email: "No account found with this email address" });
+          showToast("No account found with this email.", "error");
+        } else {
+          const msg = data.message || "Login failed. Please try again.";
+          setErrors({ general: msg });
+          showToast(msg, "error");
+        }
       }
     } catch (error) {
-      console.error('Error:', error);
-      alert('Server error. Try again later.');
+      console.error("Login error:", error);
+      const msg =
+        "Network error. Please check your connection and try again.";
+      setErrors({ general: msg });
+      showToast(msg, "error");
     }
   };
 
-  const handleReset = (e) => {
-    e.preventDefault();
-    console.log('Reset link sent to:', resetEmail);
-    alert(`Reset link sent to: ${resetEmail}`);
-    setResetEmail('');
-    setForgotPassword(false);
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    if (errors.email) setErrors(prev => ({ ...prev, email: null }));
+    if (errors.general) setErrors(prev => ({ ...prev, general: null }));
+  };
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    if (errors.password) setErrors(prev => ({ ...prev, password: null }));
+    if (errors.general) setErrors(prev => ({ ...prev, general: null }));
   };
 
   return (
     <div className="login-container">
-      <form onSubmit={forgotPassword ? handleReset : handleSubmit} className="login-form">
+      <form onSubmit={handleSubmit} className="login-form">
         <img src={medianetLogo} alt="Medianet Logo" className="login-logo" />
+        <h2>Welcome Back</h2>
 
-        {!forgotPassword ? (
-          <>
-            <h2>Welcome Back</h2>
-
-            <div className={`input-wrapper ${email ? 'filled' : ''}`}>
-              <FaEnvelope className="input-icon" />
-              <input
-                type="email"
-                placeholder="Email*"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className={`input-wrapper ${password ? 'filled' : ''}`}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Password *"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              {showPassword ? (
-                <FaEyeSlash className="input-icon password-icon" onClick={() => setShowPassword(false)} />
-              ) : (
-                <FaEye className="input-icon password-icon" onClick={() => setShowPassword(true)} />
-              )}
-            </div>
-
-            <button type="submit">Login</button>
-            <p className="forgot-password" onClick={() => setForgotPassword(true)}>
-              Forgot Password?
-            </p>
-          </>
-        ) : (
-          <>
-            <h2>Forgot Password</h2>
-            <p>Enter your email address to receive a password reset link.</p>
-            <div className="input-wrapper">
-              <label htmlFor="resetEmail" className="input-label">Email</label>
-              <FaEnvelope className="input-icon2" />
-              <input
-                type="email"
-                placeholder="Email"
-                value={resetEmail}
-                onChange={(e) => setResetEmail(e.target.value)}
-                required
-              />
-            </div>
-            <button type="submit">Send Reset Link</button>
-            <p className="forgot-password" onClick={() => setForgotPassword(false)}>
-              Back to Login
-            </p>
-          </>
+        {errors.general && (
+          <div className="error-message general-error">
+            <FaExclamationCircle /> {errors.general}
+          </div>
         )}
+
+        {/* Email Input */}
+        <div className={`input-wrapper ${email ? "filled" : ""} ${errors.email ? "error" : ""}`}>
+          <FaEnvelope className="input-icon" />
+          <input type="email" id="email" value={email} onChange={handleEmailChange} className={errors.email ? "error" : ""} />
+          <label htmlFor="email">Email *</label>
+          {errors.email && (
+            <div className="error-message field-error">
+              <FaExclamationCircle /> {errors.email}
+            </div>
+          )}
+        </div>
+
+        {/* Password Input */}
+        <div className={`input-wrapper ${password ? "filled" : ""} ${errors.password ? "error" : ""}`}>
+          <FaLock className="input-icon" />
+          <input type={showPassword ? "text" : "password"} id="password" value={password} onChange={handlePasswordChange} className={errors.password ? "error" : ""} />
+          <label htmlFor="password">Password *</label>
+          {showPassword ? (
+            <FaEyeSlash className="input-icon password-icon" onClick={() => setShowPassword(false)} />
+          ) : (
+            <FaEye className="input-icon password-icon" onClick={() => setShowPassword(true)} />
+          )}
+          {errors.password && (
+            <div className="error-message field-error">
+              <FaExclamationCircle /> {errors.password}
+            </div>
+          )}
+        </div>
+
+        <button type="submit" className="login-btn">
+          Login
+        </button>
+
+        <p className="forgot-password" onClick={() => setOpenForgot(true)}>
+          Forgot Password?
+        </p>
       </form>
+
+      <ForgotPassword open={openForgot} handleClose={() => setOpenForgot(false)} />
     </div>
   );
 };
