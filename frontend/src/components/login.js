@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/login.css";
 import medianetLogo from "../assets/medianet_transparent_logo.png";
-import { FaEnvelope, FaEye, FaEyeSlash, FaLock, FaExclamationCircle } from "react-icons/fa";
+import { FaEnvelope, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import SHA256 from "crypto-js/sha256";
 import ForgotPassword from "./passwordForgot";
 import { useAuth } from "../App";
@@ -16,6 +16,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [openForgot, setOpenForgot] = useState(false);
   const [errors, setErrors] = useState({});
+
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -51,26 +52,32 @@ const Login = () => {
 
       if (response.ok && data.success) {
         // Toast for success
-        showToast("Login successful!", "success");
+        showToast("Logged in successfully!", "success");
+
+        // Store role and permissions from data.user
+        const { role, permission } = data.user;
+        localStorage.setItem("userRole", role || "");
+        localStorage.setItem("userPermissions", JSON.stringify(permission || {}));
+
+        // Optional: store entire user object if needed
+        localStorage.setItem("userData", JSON.stringify(data.user));
 
         // Login via context
         login(data.user, data.token);
 
         // Navigate to dashboard
-        navigate("/dashboard", { replace: true });
+        setTimeout(() => {
+          navigate("/dashboard", { replace: true });
+        }, 1000);
       } else {
         // handle API errors and show toasts
         if (response.status === 401) {
-          setErrors({
-            general: "Invalid email or password. Please check your credentials.",
-          });
-          showToast("Invalid email or password.", "error");
+          showToast("Invalid email or password. Please check your credentials.", "error");
+
         } else if (response.status === 404) {
-          setErrors({ email: "No account found with this email address" });
           showToast("No account found with this email.", "error");
         } else {
           const msg = data.message || "Login failed. Please try again.";
-          setErrors({ general: msg });
           showToast(msg, "error");
         }
       }
@@ -99,24 +106,13 @@ const Login = () => {
     <div className="login-container">
       <form onSubmit={handleSubmit} className="login-form">
         <img src={medianetLogo} alt="Medianet Logo" className="login-logo" />
-        <h2>Welcome Back</h2>
-
-        {errors.general && (
-          <div className="error-message general-error">
-            <FaExclamationCircle /> {errors.general}
-          </div>
-        )}
+        <h2>Welcome Back!</h2>
 
         {/* Email Input */}
         <div className={`input-wrapper ${email ? "filled" : ""} ${errors.email ? "error" : ""}`}>
           <FaEnvelope className="input-icon" />
           <input type="email" id="email" value={email} onChange={handleEmailChange} className={errors.email ? "error" : ""} />
           <label htmlFor="email">Email *</label>
-          {errors.email && (
-            <div className="error-message field-error">
-              <FaExclamationCircle /> {errors.email}
-            </div>
-          )}
         </div>
 
         {/* Password Input */}
@@ -128,11 +124,6 @@ const Login = () => {
             <FaEyeSlash className="input-icon password-icon" onClick={() => setShowPassword(false)} />
           ) : (
             <FaEye className="input-icon password-icon" onClick={() => setShowPassword(true)} />
-          )}
-          {errors.password && (
-            <div className="error-message field-error">
-              <FaExclamationCircle /> {errors.password}
-            </div>
           )}
         </div>
 
@@ -151,3 +142,4 @@ const Login = () => {
 };
 
 export default Login;
+

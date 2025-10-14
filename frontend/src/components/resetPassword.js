@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import "../styles/login.css"; // reuse login styles
 import { FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import SHA256 from "crypto-js/sha256";
+import { showToast } from "./common/toaster";
 
 export default function ResetPassword() {
   const { token } = useParams();
@@ -12,13 +13,13 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    if (password !== confirmPassword) return setError("Passwords do not match");
+    if (password !== confirmPassword) {
+      showToast("Passwords do not match", "error");
+      return;
+    }
 
     try {
       // Hash password before sending
@@ -35,10 +36,10 @@ export default function ResetPassword() {
 
       if (!res.ok) throw new Error("Failed to update password");
 
-      setSuccess("Password changed successfully!");
+      showToast("Password changed successfully!", "success");
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message || "Something went wrong", "error");
     }
   };
 
@@ -94,9 +95,6 @@ export default function ResetPassword() {
         </div>
 
         <button type="submit">Submit</button>
-
-        {error && <p className="error-message">{error}</p>}
-        {success && <p className="success-message">{success}</p>}
       </form>
     </div>
   );

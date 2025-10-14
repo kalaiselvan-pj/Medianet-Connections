@@ -9,6 +9,7 @@ export default function DashboardLayout({ children }) {
         style={{
           padding: "20px",
           width: "80%",
+          backgroundColor: "aliceblue"
         }}
       >
         {children}

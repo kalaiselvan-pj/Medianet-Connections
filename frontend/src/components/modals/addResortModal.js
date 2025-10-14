@@ -1,126 +1,190 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Divider,
+  IconButton,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  TextField,
+  Typography,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { showToast } from "../common/toaster";
 
-const AddResortModal = ({
-  showModal,
-  setShowModal,
-  selectedProvider,
-  setSelectedProvider,
-  resortName,
-  setResortName,
-  handleAddResort
-}) => {
+const AddResortModal = ({ showModal, setShowModal, selectedResort, onClose, onSaveResort }) => {
+  const isEditMode = !!selectedResort;
+
+  const initialState = {
+    resort_name: selectedResort?.resort_name || "",
+    island: selectedResort?.island || "",
+    phone_number: selectedResort?.phone_number || "",
+    email: selectedResort?.email || "",
+    category: selectedResort?.category || "Medianet",
+  };
+
+  const [formData, setFormData] = useState(initialState);
+  const [isDirty, setIsDirty] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setFormData(initialState);
+    setIsDirty(false);
+  }, [selectedResort, showModal]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    const newValue =
+      name === "resort_name" || name === "island"
+        ? value.charAt(0).toUpperCase() + value.slice(1)
+        : value;
+
+    const updatedFormData = { ...formData, [name]: newValue };
+    setFormData(updatedFormData);
+
+    // Check if form has changes
+    const dirty = Object.keys(initialState).some(
+      (key) => updatedFormData[key] !== initialState[key]
+    );
+    setIsDirty(dirty);
+  };
+
+  const handleSave = async () => {
+    // Safe validation helper
+    const isEmpty = (val) => !val || val.toString().trim() === "";
+
+    if (isEmpty(formData.resort_name)) return showToast("Resort Name is required", "error");
+    if (isEmpty(formData.island)) return showToast("Island is required", "error");
+    if (isEmpty(formData.phone_number)) return showToast("Phone Number is required", "error");
+    if (isEmpty(formData.email)) return showToast("Email is required", "error");
+    if (isEmpty(formData.category)) return showToast("Category is required", "error");
+
+    setLoading(true);
+
+    try {
+      if (isEditMode) {
+        // Edit resort
+        const response = await fetch(
+          `http://localhost:5000/statistics/updateResort/${selectedResort.resort_id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(formData),
+          }
+        );
+        if (!response.ok) throw new Error("Failed to update resort");
+        showToast("Resort updated successfully!", "success");
+      } else {
+        // Add new resort
+        const response = await fetch("http://localhost:5000/statistics/addResort", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+        if (!response.ok) throw new Error("Failed to add resort");
+        showToast("Resort added successfully!", "success");
+      }
+      // ✅ Trigger parent refresh after success
+      if (onSaveResort) {
+        onSaveResort();
+      }
+
+      setShowModal(false);
+    } catch (error) {
+      console.error(error);
+      showToast("Something went wrong! Please try again.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!showModal) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 1000,
-      }}
+    <Dialog
+      open={showModal}
+      onClose={() => { }}
+      disableEscapeKeyDown
+      fullWidth
+      maxWidth="sm"
     >
-      <div
-        style={{
-          backgroundColor: "white",
-          padding: "16px 3px 31px 5px",
-          borderRadius: "10px",
-          width: "400px",
-          textAlign: "center",
-        }}
+      {/* Header */}
+      <DialogTitle
+        sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 1 }}
       >
-        <h3>Add New Resort</h3>
+        {isEditMode ? "Edit Resort" : "Add New Resort"}
+        <IconButton onClick={() => setShowModal(false)}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
 
-        {/* Provider Select */}
-        <label style={{ display: "block", marginTop: "20px", fontWeight: "600", marginRight: "13rem" }}>
-          Select Provider
-        </label>
-        <select
-          value={selectedProvider}
-          onChange={(e) => setSelectedProvider(e.target.value)}
-          style={{
-            padding: "10px",
-            marginTop: "8px",
-            width: "80%",
-            borderRadius: "6px",
-            border: "1px solid #ccc",
-          }}
-        >
-          <option value="Medianet">Medianet</option>
-          <option value="Ooredoo">Ooredoo</option>
-        </select>
+      <Divider />
 
-        {/* Resort Name Input */}
-        <label style={{ display: "block", marginTop: "20px", fontWeight: "600", marginRight: "14rem" }}>
-          Resort Name
-        </label>
-        <input
-          type="text"
-          placeholder="Enter a Resort Name"
-          value={resortName}
-          // onChange={(e) => setResortName(e.target.value)}
-          onChange={(e) => {
-            const val = e.target.value;
-            // Uppercase first character, keep rest as typed
-            setResortName(val.charAt(0).toUpperCase() + val.slice(1));
-          }}
-          style={{
-            marginTop: "8px",
-            padding: "10px",
-            width: "75%",
-            borderRadius: "6px",
-            border: "1px solid #ccc",
-            textTransform: "capitalize"
-          }}
+      <DialogContent sx={{ mt: 2 }}>
+        <TextField
+          fullWidth
+          required
+          label="Resort Name"
+          name="resort_name"
+          value={formData.resort_name}
+          onChange={handleChange}
+          sx={{ mb: 2, width: "26vw" }}
+        />
+        <TextField
+          fullWidth
+          required
+          label="Island"
+          name="island"
+          value={formData.island}
+          onChange={handleChange}
+          sx={{ mb: 2, width: "26vw" }}
+        />
+        <TextField
+          fullWidth
+          required
+          label="Phone Number"
+          name="phone_number"
+          value={formData.phone_number}
+          onChange={handleChange}
+          sx={{ mb: 2, width: "26vw" }}
+        />
+        <TextField
+          fullWidth
+          required
+          label="Email"
+          type="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          sx={{ mb: 2, width: "26vw" }}
         />
 
-        {/* Buttons */}
-        <div
-          style={{
-            marginTop: "30px",
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: "1rem"
-          }}
+        <Typography variant="subtitle1" gutterBottom>
+          Category
+        </Typography>
+        <RadioGroup row name="category" value={formData.category} onChange={handleChange}>
+          <FormControlLabel value="Medianet" control={<Radio />} label="Medianet" />
+          <FormControlLabel value="Ooredoo" control={<Radio />} label="Ooredoo" />
+        </RadioGroup>
+      </DialogContent>
+
+      <Divider />
+
+      <DialogActions>
+        <Button onClick={() => setShowModal(false)}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={!isDirty || loading}
         >
-          <button
-            onClick={() => setShowModal(false)}
-            style={{
-              padding: "10px 20px",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: "#ccc",
-              cursor: "pointer",
-              marginLeft: "40px",
-              fontSize: "1rem",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleAddResort}
-            style={{
-              padding: "10px 20px",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: "#569fdfff",
-              color: "white",
-              cursor: "pointer",
-              marginRight: "40px",
-              fontSize: "1rem",
-            }}
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
+          {loading ? "Saving..." : isEditMode ? "Update" : "Save"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

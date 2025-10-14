@@ -1,9 +1,18 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../App";
+import "../styles/sideBar.css";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import ListIcon from "@mui/icons-material/List";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import SecurityIcon from "@mui/icons-material/Security";
+import LogoutIcon from '@mui/icons-material/Logout';
+import { canAccess } from "../rbac/canAccess";
+
 
 const Sidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuth();
 
   const handleLogout = () => {
@@ -11,75 +20,48 @@ const Sidebar = () => {
     navigate("/login", { replace: true });
   };
 
+  // helper to check if path is active
+  const isActive = (path) => location.pathname === path;
+
+
+
   return (
-    <div
-      style={{
-        width: "18%",
-        backgroundColor: "#1e476c",
-        color: "white",
-        display: "flex",
-        flexDirection: "column",
-        padding: "0px 20px 20px 20px",
-        boxShadow: "2px 0 5px rgba(0,0,0,0.2)",
-      }}
-    >
+    <div className="sidebar">
       <div className="menubar" style={{ flexGrow: 1 }}>
         <div className="menulist">
-          <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Menu</h2>
+          <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Islands Connection</h2>
         </div>
+
         <div className="dashboardbutton">
-          <button
-            onClick={() => navigate("/dashboard")}
-            style={{
-              border: "none",
-              cursor: "pointer",
-              color: "white",
-              padding: "12px",
-              borderRadius: "8px",
-              backgroundColor: "#569fdfff",
-              textAlign: "center",
-              fontWeight: "bold",
-              marginBottom: "10px",
-              width: "97%",
-            }}
-          >
-            Dashboard
-          </button>
-        </div>
-        <div className="listbutton">
-          <button
-            onClick={() => navigate("/listview")}
-            style={{
-              border: "none",
-              cursor: "pointer",
-              color: "white",
-              padding: "12px",
-              borderRadius: "8px",
-              backgroundColor: "#569fdfff",
-              textAlign: "center",
-              fontWeight: "bold",
-              width: "97%",
-            }}
-          >
-            List View
-          </button>
+          {canAccess("dashboard") && (
+            <button onClick={() => navigate("/dashboard")} className={`lhs_button ${isActive("/dashboard") ? "active" : ""}`}>
+              <DashboardIcon style={{ marginRight: "8px", fontSize: "20px" }} /> Dashboard
+            </button>
+          )}
+
+          {canAccess("resortList") && (
+            <button onClick={() => navigate("/listview")} className={`lhs_button ${isActive("/listview") ? "active" : ""}`}>
+              <ListIcon style={{ marginRight: "8px", fontSize: "20px" }} /> Resorts List View
+            </button>
+          )}
+
+          {canAccess("resortIncidents") && (
+            <button onClick={() => navigate("/resort-incidents")} className={`lhs_button ${isActive("/resort-incidents") ? "active" : ""}`}>
+              <ReportProblemIcon style={{ marginRight: "8px", fontSize: "20px" }} /> Resort Incident Reports
+            </button>
+          )}
+
+          {canAccess("rbacManagement") && (
+            <button onClick={() => navigate("/rbac-management")} className={`lhs_button ${isActive("/rbac-management") ? "active" : ""}`}>
+              <SecurityIcon style={{ marginRight: "8px", fontSize: "20px" }} /> RBAC Management
+            </button>
+          )}
         </div>
       </div>
+
       <div className="logoutbutton">
-        <button
-          onClick={handleLogout}
-          style={{
-            border: "none",
-            cursor: "pointer",
-            color: "white",
-            padding: "10px",
-            width: "100%",
-            borderRadius: "8px",
-            backgroundColor: "#e74c3c",
-            textAlign: "center",
-            fontWeight: "bold",
-          }}
-        >
+        <button onClick={handleLogout} className="logout-btn">
+          <LogoutIcon style={{ fontSize: "20px" }} />
           Logout
         </button>
       </div>

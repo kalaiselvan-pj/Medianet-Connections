@@ -80,7 +80,7 @@ export const forgotPassword = async (email) => {
     subject: "Password Reset Request",
     html: `
     <div style="font-family: Arial, sans-serif; color:#000;">
-      <p>Hello,</p>
+      <p>Hello ${userRow.user_name},</p>
       <p>You requested to reset your password. Click the button below to set a new one:</p>
 
       <p style="text-align:center;">
@@ -137,22 +137,89 @@ export const resetPassword = async (token, newPassword) => {
   //  Mark the old row as updated
   await db.query(
     `UPDATE login
-       SET actions='updated',
+       SET actions='password changed',
+       resetPasswordToken=?,
+       resetPasswordExpires=?,
            updated_at=NOW()
      WHERE user_id=?`,
-    [userRow.user_id]
+    [userRow.resetPasswordToken, userRow.resetPasswordExpires, userRow.user_id]
   );
 
-  //  Insert new row with same user_id, name, email & new password
+  //  Insert new row 
   const newLoginId = uuidv4();
   await db.query(
     `INSERT INTO login
-       (login_id, user_id, name, email, password, actions, resetPasswordToken, resetPasswordExpires, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NOW(), NOW())`,
-    [newLoginId, userRow.user_id, userRow.name, userRow.email, newPassword]
+       (login_id, user_id, user_name, email, password, actions, resetPasswordToken, resetPasswordExpires, role, permission, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, NOW(), NOW())`,
+    [newLoginId, userRow.user_id, userRow.user_name, userRow.email, newPassword, userRow.role, userRow.permission]
   );
 
   return { message: "Password changed successfully" };
+};
+
+export const addUser = async (data) => {
+  const login_id = uuidv4();
+  const user_id = uuidv4();
+
+  try {
+    await db.query(
+      `INSERT INTO login
+         (login_id, user_id, user_name, email, password, role, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [login_id, user_id, data.user_name, data.email, data.password, data.role]
+    );
+
+    return {
+      login_id,
+      user_id,
+      user_name: data.user_name,
+      email: data.email,
+      role: data.role,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+  } catch (err) {
+    console.error("Error inserting user:", err);
+    throw err;
+  }
+};
+
+
+
+export const getAllUsers = async () => {
+  try {
+    const allusers = await db.query("SELECT login_id, user_id, user_name, email,password, role, permission  FROM login WHERE actions IS NULL");
+
+    return allusers;
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    throw err;
+  }
+};
+
+// Update User Rbac
+const updateUser = async (login_id, data) => {
+  try {
+    const kalai = await db.query(
+      `UPDATE login
+       SET role = ?, permission = ?, updated_at = NOW() WHERE login_id = ?`,
+      [data.role, data.permissions, login_id]
+    );
+  } catch (err) {
+    console.error("Error updating user:", err);
+    throw err;
+  }
+};
+
+// Delete user
+const deleteUser = async (login_id) => {
+  try {
+    await db.query("DELETE FROM login WHERE login_id = ?", [login_id]);
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    throw err;
+  }
+
 };
 
 
@@ -172,31 +239,35 @@ const getDashboardStats = async () => {
   }
 };
 
-
-export const addResort = async (resort_name, category) => {
-  const resort_id = uuidv4(); // ✅ generate new uuid
-
-  await db.query(
-    `INSERT INTO resort_list
-       (resort_id, resort_name, category, created_at, updated_at)
-     VALUES (?, ?, ?, NOW(), NOW())`,
-    [resort_id, resort_name, category]
-  );
-
-  return {
-    resort_id,
-    resort_name,
-    category,
-    created_at: new Date(),
-    updated_at: new Date(),
-  };
+const addResort = async (data) => {
+  try {
+    const resort_id = uuidv4(); // generate new uuid
+    await db.query(
+      `INSERT INTO resort_list 
+       (resort_id, resort_name, category, island, email, phone_number, actions, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, null, NOW(), null)`,
+      [resort_id, data.resort_name, data.category, data.island, data.email, data.phone_number]
+    );
+  } catch (err) {
+    // Check for duplicate entry error (MySQL error code 1062)
+    if (err.code === "ER_DUP_ENTRY") {
+      console.error("Duplicate resort detected:", err.message);
+      throw new Error("Resort already exists!");
+    }
+    console.error("Error inserting resort:", err);
+    throw err;
+  }
 };
-
 
 export const getResorts = async () => {
   try {
-    // Only select resort_name and category
-    const rows = await db.query("SELECT resort_id, resort_name, category FROM resort_list ORDER BY resort_name ASC");
+    // Select resorts where action is NULL
+    const rows = await db.query(
+      `SELECT resort_id, resort_name, category, island, email, phone_number 
+       FROM resort_list 
+       WHERE (actions IS NULL OR actions = '')
+       ORDER BY resort_name ASC`
+    );
 
     return rows;
   } catch (err) {
@@ -204,40 +275,150 @@ export const getResorts = async () => {
     throw err;
   }
 };
-// Update resort
-const updateResort = async (resort_id, resort_name, category) => {
+
+const updateResort = async (resort_id, data) => {
   try {
-    await db.query(
-      "UPDATE resort_list SET resort_name = ?, category = ?, updated_at = NOW() WHERE resort_id = ?",
-      [resort_name, category, resort_id]
+    // Step 1: Mark old record as Updated
+    const rows = await db.query(
+      `UPDATE resort_list
+       SET updated_at = NOW(),
+           actions = 'Updated'
+       WHERE resort_id = ?`,
+      [resort_id]
     );
+
+    // Step 2: Insert a new record with new UUID and updated data
+    const newResortId = uuidv4();
+
+    await db.query(
+      `INSERT INTO resort_list 
+       (resort_id, resort_name, category, island, email, phone_number,actions, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?,NULL, NOW(), NOW())`,
+      [
+        newResortId,
+        data.resort_name || null,
+        data.category || null,
+        data.island || null,
+        data.email || null,
+        data.phone_number || null
+      ]
+    );
+
   } catch (err) {
     console.error("Error updating resort:", err);
     throw err;
   }
 };
+
 // Delete resort
 const deleteResort = async (resort_id) => {
   try {
-    await db.query("DELETE FROM resort_list WHERE resort_id = ?", [resort_id]);
+    await db.query("UPDATE resort_list SET updated_at= NOW() , actions='deleted' WHERE resort_id = ?", [resort_id]);
   } catch (err) {
     console.error("Error deleting resort:", err);
     throw err;
   }
+};
 
+export const addResortIncident = async (data) => {
+  const incident_id = uuidv4();
+  const insertDATA = await db.query(
+    `INSERT INTO resort_incident_reports
+       (incident_id,resort_id, resort_name, category,notes,status,incident_date, created_at, updated_at)
+     VALUES (?, ?, ?,?,?,?,?, NOW(), NOW())`,
+    [incident_id, data.resort_id, data.resort_name, data.category, data.notes, data.status, data.incident_date]
+  );
+
+  return {
+    incident_id,
+    resort_id: data.resort_id,
+    resort_name: data.resort_name,
+    category: data.category,
+    notes: data.notes,
+    status: data.status,
+    incident_date: data.incident_date,
+    created_at: new Date(),
+    updated_at: new Date(),
+  };
+};
+
+export const getAllIncidentReports = async () => {
+  try {
+    const rows = await db.query("SELECT incident_id,resort_id, resort_name, category,notes,status,incident_date FROM resort_incident_reports WHERE actions IS NULL ORDER BY incident_date DESC");
+    return rows;
+  } catch (err) {
+    console.error("Error fetching resorts:", err);
+    throw err;
+  }
+};
+
+const updateIncidentReport = async (incident_id, data) => {
+  try {
+    await db.query(
+      `UPDATE resort_incident_reports
+       SET actions = 'updated',
+           updated_at = NOW()
+       WHERE incident_id = ?`,
+      [incident_id]
+    );
+
+    const newIncidentId = uuidv4();
+    await db.query(
+      `INSERT INTO resort_incident_reports 
+        (incident_id, resort_id, resort_name, category, notes, status, incident_date, actions, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW())`,
+      [
+        newIncidentId,
+        data.resort_id,
+        data.resort_name,
+        data.category,
+        data.notes,
+        data.status,
+        data.incident_date
+      ]
+    );
+
+  } catch (err) {
+    console.error("Error updating resort:", err);
+    throw err;
+  }
+};
+
+// Delete Resort Incident
+const deleteResortIncident = async (incident_id) => {
+  try {
+    await db.query(
+      "UPDATE resort_incident_reports SET actions = 'deleted', updated_at = NOW() WHERE incident_id = ?",
+      [incident_id]
+    );
+
+    return { success: true, message: "Incident report marked as deleted" };
+  } catch (err) {
+    console.error("Error soft-deleting resort incident report:", err);
+    throw err;
+  }
 };
 
 
-// ✅ Export using ES module syntax
+
+// Export using ES module syntax
 export default {
   login,
   forgotPassword,
   resetPassword,
+  addUser,
+  getAllUsers,
+  updateUser,
+  deleteUser,
   getDashboardStats,
   addResort,
   getResorts,
   updateResort,
-  deleteResort
+  deleteResort,
+  addResortIncident,
+  getAllIncidentReports,
+  updateIncidentReport,
+  deleteResortIncident
 };
 
 

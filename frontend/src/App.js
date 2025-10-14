@@ -6,6 +6,8 @@ import DashboardView from "./components/dashboardView";
 import ListView from "./components/listView";
 import DashboardLayout from "./components/dashboardLayout";
 import Toaster from "./components/common/toaster";
+import IncidentReports from "./components/incident-reports"
+import Rbac from "./components/rbac";
 
 // Create Auth Context
 const AuthContext = createContext();
@@ -93,6 +95,28 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <ListView />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/resort-incidents"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <IncidentReports />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/rbac-management"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Rbac />
                 </DashboardLayout>
               </ProtectedRoute>
             }

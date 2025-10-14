@@ -8,18 +8,14 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import CircularProgress from "@mui/material/CircularProgress";
-import Alert from "@mui/material/Alert";
+import { showToast } from "./common/toaster";
 
 function ForgotPassword({ open, handleClose }) {
   const [email, setEmail] = React.useState("");
   const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [success, setSuccess] = React.useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
     setLoading(true);
 
     try {
@@ -36,17 +32,15 @@ function ForgotPassword({ open, handleClose }) {
         const data = await res.json();
         throw new Error(data.message || "Failed to send reset email");
       }
-
-      setSuccess("A reset link has been sent! Please check your inbox.");
+      showToast("A reset link has been sent! Please check your inbox.", "success");
       setEmail("");
 
       // Close dialog after 2 seconds
       setTimeout(() => {
         handleClose();
-        setSuccess("");
       }, 2000);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message || "Something went wrong, please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -67,15 +61,13 @@ function ForgotPassword({ open, handleClose }) {
       <DialogTitle>Reset Password</DialogTitle>
 
       <DialogContent
-        sx={{ display: "flex", flexDirection: "column", gap: 2, width: "40vw" }}
+        sx={{ display: "flex", flexDirection: "column", gap: 2 }}
       >
         <DialogContentText>
           Enter the email address associated with your account. We&apos;ll send
           you a link to create a new password.
         </DialogContentText>
 
-        {error && <Alert severity="error">{error}</Alert>}
-        {success && <Alert severity="success">{success}</Alert>}
 
         <OutlinedInput
           autoFocus
