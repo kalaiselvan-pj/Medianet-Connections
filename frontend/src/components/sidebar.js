@@ -8,6 +8,7 @@ import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import SecurityIcon from "@mui/icons-material/Security";
 import LogoutIcon from '@mui/icons-material/Logout';
 import { canAccess } from "../rbac/canAccess";
+import medianetLogo from "../assets/medianet_transparent_logo.png";
 
 
 const Sidebar = () => {
@@ -29,6 +30,7 @@ const Sidebar = () => {
     <div className="sidebar">
       <div className="menubar" style={{ flexGrow: 1 }}>
         <div className="menulist">
+          <img src={medianetLogo} alt="Medianet Logo" className="mdn-logo" />
           <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Islands Connection</h2>
         </div>
 

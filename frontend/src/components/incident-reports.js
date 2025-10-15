@@ -1,4 +1,4 @@
-import { Dialog, DialogTitle, DialogActions, Button, Tooltip } from "@mui/material";
+import { Dialog, DialogTitle, DialogActions, Button, DialogContent, Menu } from "@mui/material";
 import React, { useState, useEffect } from "react";
 import "../styles/incidentReports.css"
 import SearchIcon from '@mui/icons-material/Search';
@@ -15,6 +15,9 @@ import EditIcon from "@mui/icons-material/Edit";
 import { canAccess } from "../rbac/canAccess";
 import { showToast } from "./common/toaster";
 import { GetApp } from "@mui/icons-material";
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+
 
 
 const IncidentReports = () => {
@@ -27,6 +30,9 @@ const IncidentReports = () => {
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [selectedIncidentId, setSelectedIncidentId] = useState(null);
     const [statusFilter, setStatusFilter] = useState(""); // "" means no filter
+    const [viewOpen, setViewOpen] = useState(false);           // Dialog visibility
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [menuIncident, setMenuIncident] = useState(null); // Track which row's menu is open
 
 
 
@@ -150,14 +156,25 @@ const IncidentReports = () => {
             .catch((err) => console.error("Error fetching incidents:", err));
     };
 
-    const handleRowClick = (incident) => {
-        setSelectedIncident(incident);
+    const handleMenuOpen = (event, incident) => {
+        setAnchorEl(event.currentTarget);
+        setMenuIncident(incident);
     };
 
-    const closePopup = () => {
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+        setMenuIncident(null);
+    };
+
+    const handleViewClick = (incident) => {
+        setSelectedIncident(incident);
+        setViewOpen(true);
+    };
+
+    const handleCloseView = () => {
+        setViewOpen(false);
         setSelectedIncident(null);
     };
-
 
     return (
         <div className="incident-container">
@@ -233,7 +250,6 @@ const IncidentReports = () => {
 
                 {canAccess("resortIncidents", "edit") && (
                     <button className="add-btn" onClick={handleAdd}>
-                        {/* <AddIcon style={{ marginRight: "6px", fontSize: "small" }} /> */}
                         <AddIcon fontSize="small" />
                         Add
                     </button>
@@ -263,18 +279,14 @@ const IncidentReports = () => {
                         >
                             <td>{indexOfFirstIncident + index + 1}</td>
 
-                            <td
-                                onClick={() => handleRowClick(incident)} // open popup on row click
-                            >
+                            <td>
                                 {incident.resort_name.length > 25
                                     ? incident.resort_name.slice(0, 25) + "..."
                                     : incident.resort_name}
                             </td>
                             <td>{incident.category}</td>
                             {/* Notes with limit */}
-                            <td
-                                onClick={() => handleRowClick(incident)} // open popup on row click
-                            >
+                            <td>
                                 {incident.notes.length > 20
                                     ? incident.notes.slice(0, 20) + "..."
                                     : incident.notes}
@@ -300,24 +312,48 @@ const IncidentReports = () => {
                             </td>
                             <td>{dayjs(incident.incident_date).format("DD MMM YYYY")}</td>
                             {canAccess("resortIncidents", "edit") && (
-                                <td>
+                                <td style={{ textAlign: "center" }}>
+                                    <IconButton onClick={(e) => handleMenuOpen(e, incident)}>
+                                        <MoreVertIcon />
+                                    </IconButton>
 
-                                    <Tooltip title="Edit" arrow>
-                                        <IconButton onClick={() => handleEdit(incident)} color="primary">
-                                            <EditIcon fontSize="small" />
-                                        </IconButton>
-                                    </Tooltip>
-
-                                    <Tooltip title="Delete" arrow>
-                                        <IconButton
-                                            className="action-btn delete"
-                                            onClick={() => confirmDelete(incident.incident_id)} // Fix: Pass 'incident.id'
-
+                                    <Menu
+                                        anchorEl={anchorEl}
+                                        open={Boolean(anchorEl) && menuIncident?.incident_id === incident.incident_id}
+                                        onClose={handleMenuClose}
+                                    >
+                                        <MenuItem
+                                            onClick={() => {
+                                                handleViewClick(menuIncident);
+                                                handleMenuClose();
+                                            }}
                                         >
-                                            <DeleteIcon style={{ color: "#fd0d0dff" }} fontSize="small" /> {/* you can use 'small', 'medium', 'large' */}
-                                        </IconButton>
-                                    </Tooltip>
+                                            <VisibilityIcon fontSize="small" style={{ marginRight: "8px", color: "#1976d2" }} />
+                                            View
+                                        </MenuItem>
+
+                                        <MenuItem
+                                            onClick={() => {
+                                                handleEdit(menuIncident);
+                                                handleMenuClose();
+                                            }}
+                                        >
+                                            <EditIcon fontSize="small" style={{ marginRight: "8px", color: "#1976d2" }} />
+                                            Edit
+                                        </MenuItem>
+
+                                        <MenuItem
+                                            onClick={() => {
+                                                confirmDelete(menuIncident.incident_id);
+                                                handleMenuClose();
+                                            }}
+                                        >
+                                            <DeleteIcon fontSize="small" style={{ marginRight: "8px", color: "#fd0d0d" }} />
+                                            Delete
+                                        </MenuItem>
+                                    </Menu>
                                 </td>
+
                             )}
                         </tr>
                     ))}
@@ -325,37 +361,32 @@ const IncidentReports = () => {
             </table>
 
             {/* Popup */}
-            {selectedIncident && (
-                <div className="popup-overlay"
-                    onClick={(e) => {
-                        // Check if the element that was clicked (e.target) is the overlay itself (e.currentTarget)
-                        if (e.target === e.currentTarget) {
-                            // Assuming 'closePopup' is a function that calls setSelectedIncident(null)
-                            closePopup();
-                        }
-                    }}
-                >
-                    <div
-                        className="popup-content"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h3>Incident Details</h3>
-                        <hr />
-
-                        <p><strong>Resort Name:</strong> {selectedIncident.resort_name}</p>
-                        <p><strong>Category:</strong> {selectedIncident.category}</p>
-                        <p><strong>Incident:</strong> {selectedIncident.notes}</p>
-                        <p><strong>Status:</strong> {selectedIncident.status}</p>
-                        <p><strong>Date:</strong> {dayjs(selectedIncident.incident_date).format("DD MMM YYYY")}</p>
-
-                        <hr />
-                        <div className="popup-footer">
-                            <button onClick={closePopup} className="close-btn">Close</button>
+            <Dialog open={viewOpen} onClose={handleCloseView}
+                PaperProps={{
+                    sx: {
+                        width: "600px",   // set your desired width
+                        maxWidth: "90%",  // optional, keeps it responsive
+                    }
+                }}>
+                <DialogTitle>Incident Details</DialogTitle>
+                <DialogContent dividers>
+                    {selectedIncident && (
+                        <div>
+                            <p><strong>Resort Name:</strong> {selectedIncident.resort_name}</p>
+                            <p><strong>Category:</strong> {selectedIncident.category}</p>
+                            <p><strong>Incident:</strong> {selectedIncident.notes}</p>
+                            <p><strong>Status:</strong> {selectedIncident.status}</p>
+                            <p><strong>Date:</strong> {dayjs(selectedIncident.incident_date).format("DD MMM YYYY")}</p>
                         </div>
-                    </div>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseView} variant="contained" color="primary">
+                        Close
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
-                </div>
-            )}
 
             <div
                 style={{

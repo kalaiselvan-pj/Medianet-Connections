@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import AddResortModal from "../components/modals/addResortModal";
-import { Button, Dialog, DialogTitle, DialogActions, FormControl, Select, MenuItem, IconButton, Tooltip } from "@mui/material";
+import { Button, Dialog, DialogTitle, DialogActions, FormControl, Select, MenuItem, IconButton, DialogContent, Menu } from "@mui/material";
 import { GetApp } from "@mui/icons-material";
 import AddIcon from '@mui/icons-material/Add';
 import "react-toastify/dist/ReactToastify.css";
@@ -12,6 +12,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from "@mui/icons-material/Edit";
 import { canAccess } from "../rbac/canAccess";
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 const ListView = () => {
   const [tableData, setTableData] = useState([]);
@@ -19,9 +21,13 @@ const ListView = () => {
   const [selectedResort, setSelectedResort] = useState(null); // for add/edit
   const [currentPage, setCurrentPage] = useState(1);
   const [filterCategory, setFilterCategory] = useState("All");
-  const [open, setOpen] = useState(false);
   const [selectedResortId, setSelectedResortId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRow, setSelectedRow] = useState(null); // Track selected row
+  const [viewOpen, setViewOpen] = useState(false);      // For viewing details
+  const [deleteOpen, setDeleteOpen] = useState(false);  // For delete confirmation
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [menuRow, setMenuRow] = useState(null);
 
 
   const itemsPerPage = 5;
@@ -45,7 +51,7 @@ const ListView = () => {
 
   const handleDelete = (resort_id) => {
     setSelectedResortId(resort_id);
-    setOpen(true);
+    setDeleteOpen(true);
   };
 
   const handleConfirmDelete = () => {
@@ -56,14 +62,14 @@ const ListView = () => {
       .then(() => {
         setTableData(tableData.filter((item) => item.resort_id !== selectedResortId));
         showToast("Resort deleted successfully!", "success");
-        setOpen(false);
+        setDeleteOpen(false);
         setSelectedResortId(null);
       })
       .catch((err) => console.error("Error deleting resort:", err));
   };
 
   const handleCancelDelete = () => {
-    setOpen(false);
+    setDeleteOpen(false);
     setSelectedResortId(null);
   };
 
@@ -114,6 +120,25 @@ const ListView = () => {
     link.click();
     document.body.removeChild(link);
     showToast("CSV downloaded successfully!", "success");
+  };
+
+  const handleMenuOpen = (event, row) => {
+    setMenuAnchorEl(event.currentTarget);
+    setMenuRow(row);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setMenuRow(null);
+  };
+
+  const handleViewClick = (item) => {
+    setSelectedRow(item);
+    setViewOpen(true);
+  };
+  const handleCloseView = () => {
+    setViewOpen(false);
+    setSelectedRow(null);
   };
 
   return (
@@ -205,30 +230,109 @@ const ListView = () => {
               <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
                 {(currentPage - 1) * itemsPerPage + index + 1}
               </td>
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{item.resort_name}</td>
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{item.category}</td>
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{item.island}</td>
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{item.phone_number}</td>
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{item.email}</td>
-              {canAccess("resortList", "edit") && (
+              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
+                {item.resort_name?.length > 20
+                  ? item.resort_name.slice(0, 20) + "..."
+                  : item.resort_name}
+              </td>
 
+              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
+                {item.category}
+              </td>
+
+              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
+                {item.island?.length > 16
+                  ? item.island.slice(0, 16) + "..."
+                  : item.island}
+              </td>
+
+              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{item.phone_number}</td>
+              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
+                {item.email?.length > 23
+                  ? item.email.slice(0, 23) + "..."
+                  : item.email}
+              </td>
+
+              {canAccess("resortList", "edit") && (
                 <td style={{ padding: "10px", borderBottom: "1px solid #eee", textAlign: "center" }}>
-                  <Tooltip title="Edit" arrow>
-                    <IconButton onClick={() => handleEdit(item)} color="primary">
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Delete" arrow>
-                    <IconButton onClick={() => handleDelete(item.resort_id)}>
-                      <DeleteIcon style={{ color: "#fd0d0dff" }} fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  {canAccess("resortList", "edit") && (
+                    <>
+                      <IconButton onClick={(e) => handleMenuOpen(e, item)}>
+                        <MoreVertIcon />
+                      </IconButton>
+
+                      <Menu
+                        anchorEl={menuAnchorEl}
+                        open={Boolean(menuAnchorEl) && menuRow?.resort_id === item.resort_id}
+                        onClose={handleMenuClose}
+                        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                        transformOrigin={{ vertical: "top", horizontal: "right" }}
+                      >
+                        <MenuItem
+                          onClick={() => {
+                            handleViewClick(item);
+                            handleMenuClose();
+                          }}
+                        >
+                          <VisibilityIcon fontSize="small" style={{ marginRight: "8px", color: "#1976d2" }} />
+                          View
+                        </MenuItem>
+
+                        <MenuItem
+                          onClick={() => {
+                            handleEdit(item);
+                            handleMenuClose();
+                          }}
+                        >
+                          <EditIcon fontSize="small" style={{ marginRight: "8px", color: "#1976d2" }} />
+                          Edit
+                        </MenuItem>
+
+                        <MenuItem
+                          onClick={() => {
+                            handleDelete(item.resort_id);
+                            handleMenuClose();
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" style={{ marginRight: "8px", color: "#fd0d0dff" }} />
+                          Delete
+                        </MenuItem>
+                      </Menu>
+                    </>
+                  )}
                 </td>
               )}
             </tr>
           ))}
         </tbody>
       </table>
+
+      {/* Popup Dialog */}
+      <Dialog open={viewOpen} onClose={handleCloseView}
+        PaperProps={{
+          sx: {
+            width: "500px",   // set your desired width
+            maxWidth: "90%",  // optional, keeps it responsive
+          }
+        }}>
+        <DialogTitle>Resort Details</DialogTitle>
+        <DialogContent dividers>
+          {selectedRow && (
+            <div>
+              <p><strong>Resort Name:</strong> {selectedRow.resort_name}</p>
+              <p><strong>Category:</strong> {selectedRow.category}</p>
+              <p><strong>Island:</strong> {selectedRow.island}</p>
+              <p><strong>Phone:</strong> {selectedRow.phone_number}</p>
+              <p><strong>Email:</strong> {selectedRow.email}</p>
+            </div>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseView} variant="contained" color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
 
       {/* Pagination */}
@@ -250,14 +354,14 @@ const ListView = () => {
         selectedResort={selectedResort}
         onClose={() => setSelectedResort(null)}
         onSaveResort={() => {
-          fetchResorts(); // ✅ Refresh table after save
+          fetchResorts(); //  Refresh table after save
           setShowModal(false); // close modal
         }}
       />
 
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={open} onClose={handleCancelDelete}>
+      <Dialog open={deleteOpen} onClose={handleCancelDelete}>
         <DialogTitle>Are you sure you want to delete this resort?</DialogTitle>
         <DialogActions>
           <Button onClick={handleCancelDelete} color="primary">Cancel</Button>
