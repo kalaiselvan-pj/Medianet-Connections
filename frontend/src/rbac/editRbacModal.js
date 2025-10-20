@@ -27,6 +27,7 @@ const RbacUserModal = ({ isOpen, onClose, onSave, userData }) => {
         resortList: { view: false, edit: false },
         resortIncidents: { view: false, edit: false },
         streamerConfig: { view: false, edit: false },
+        rbacManagement: { view: false, edit: false },
     });
     const [originalData, setOriginalData] = useState(null);
     const [isChanged, setIsChanged] = useState(false); // track changes
@@ -39,6 +40,8 @@ const RbacUserModal = ({ isOpen, onClose, onSave, userData }) => {
                     dashboard: { view: false, edit: false },
                     resortList: { view: false, edit: false },
                     resortIncidents: { view: false, edit: false },
+                    streamerConfig: { view: false, edit: false },
+                    rbacManagement: { view: false, edit: false },
                 };
             setRole(initRole);
             setPermissions(initPermissions);
