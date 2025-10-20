@@ -1,0 +1,37 @@
+.table-header {
+    background-color: rgb(86, 159, 223);
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 15px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 9px;
+}
+
+/* This css uses for add user button*/
+.add-user-btn {
+    width: 8rem;
+    background-color: #2e86de;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 12px;
+    transition: all 0.2s ease;
+}
+
+.add-user-btn:hover {
+    background-color: #1b4f9c;
+    transform: scale(1.05);
+}
+
+.add-user-btn:active {
+    background-color: #164a85;
+    transform: scale(0.98);
+}
