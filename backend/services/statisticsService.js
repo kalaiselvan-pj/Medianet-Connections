@@ -64,7 +64,9 @@ export const forgotPassword = async (email) => {
   );
 
   //  Send reset email
-  const resetUrl = `http://localhost:3000/login/reset-password/${resetToken}`;
+  const baseUrl = "https://mdnislandrpt.medianet.mv";
+  const resetUrl = `${baseUrl}/login/reset-password/${resetToken}`;
+
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
