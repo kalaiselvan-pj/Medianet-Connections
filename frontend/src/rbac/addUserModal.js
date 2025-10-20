@@ -93,7 +93,7 @@ const AddUserModal = ({ open, onClose, onSave }) => {
         const hashedPassword = SHA256(form.password).toString();
         const payload = { ...form, password: hashedPassword };
 
-        fetch("http://localhost:5000/statistics/addUser", {
+        fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/addUser`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),

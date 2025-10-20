@@ -42,7 +42,7 @@ const Login = () => {
     try {
       const hashedPassword = SHA256(password).toString();
 
-      const response = await fetch("http://localhost:5000/statistics/login", {
+      const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password: hashedPassword }),

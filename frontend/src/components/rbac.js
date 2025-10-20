@@ -42,7 +42,7 @@ const Rbac = () => {
     }, []);
 
     const fetchUserData = () => {
-        fetch("http://localhost:5000/statistics/getAllUsersData")
+        fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/getAllUsersData`)
             .then((res) => res.json())
             .then((fetchedUserData) => setUsers(fetchedUserData))
             .catch((err) => console.error("Error fetching User Data:", err));
@@ -63,7 +63,7 @@ const Rbac = () => {
     };
 
     const handleConfirmDelete = () => {
-        fetch(`http://localhost:5000/statistics/deleteUser/${selectedId}`, { method: "DELETE" })
+        fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/deleteUser/${selectedId}`, { method: "DELETE" })
             .then((res) => res.json())
             .then(() => {
                 setUsers((prev) => prev.filter((user) => user.login_id !== selectedId));
@@ -89,16 +89,16 @@ const Rbac = () => {
     };
 
     return (
-        <div style={{ padding: "10px" }}>
-            <h2>Role Based Access Control (RBAC)</h2>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
+        <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h2 style={{ margin: 0 }}>Role Based Access Control (RBAC)</h2>
                 <button onClick={handleAdd} className="add-user-btn">
                     <AddIcon style={{ marginRight: "6px" }} />
                     Add User
                 </button>
             </div>
 
-            <Paper sx={{ maxHeight: "78vh", overflow: "auto" }}>
+            <Paper sx={{ maxHeight: "84vh", overflow: "auto" }}>
                 <Table>
                     <TableHead>
                         <TableRow>
@@ -112,7 +112,7 @@ const Rbac = () => {
                     </TableHead>
                     <TableBody>
                         {users.map((user) => (
-                            <TableRow key={user.id}>
+                            <TableRow key={user.login_id}>
                                 <TableCell>{user.user_name}</TableCell>
                                 <TableCell>{user.email}</TableCell>
                                 <TableCell>{user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : ""}</TableCell>

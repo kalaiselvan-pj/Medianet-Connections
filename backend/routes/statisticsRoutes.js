@@ -34,6 +34,10 @@ router.put("/updateIncidentReport/:id", statisticsController.updateIncidentRepor
 
 router.delete("/deleteResortIncident/:incident_id", statisticsController.deleteResortIncident);
 
+router.get("/streamers/all", statisticsController.getStreamers);
+
+router.put("/updateStreamerConfig/:id", statisticsController.updateStreamer);
+
 
 
 export default router; // this must exist

@@ -196,6 +196,90 @@ const deleteResortIncident = async (req, res) => {
   }
 };
 
+export const getStreamers = async (req, res) => {
+  try {
+    // FIX: Get resort_name from req.query (query parameters in the URL)
+    const { resort_name } = req.query;
+
+    // console.log(req.query, 'Query parameters received'); // This will now show the resort_name
+
+    if (!resort_name) {
+      // Optional: Return a 400 Bad Request if the required parameter is missing
+      return res.status(400).json({ error: "Missing resort_name query parameter" });
+    }
+
+    const { vertical, horizontal } = await statisticsService.getAllStreamers(resort_name);
+    res.json({ vertical, horizontal });
+  } catch (err) {
+    console.error("Error in getStreamers controller:", err);
+    res.status(500).json({ error: "Failed to fetch streamer data" });
+  }
+};
+
+export const updateStreamer = async (req, res) => {
+  try {
+    const { id } = req.params; // streamer_config_id from URL parameter
+    const updateData = req.body; // Update fields from request body
+
+    console.log(`Updating streamer ID: ${id}`, updateData);
+
+    // Validate that ID exists
+    if (!id) {
+      return res.status(400).json({ error: "Missing streamer ID parameter" });
+    }
+
+    // Validate that update data exists
+    if (!updateData || Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No update data provided" });
+    }
+
+    // Optional: Define allowed fields to prevent updating restricted fields
+    const allowedFields = [
+      'resort_name',
+      'signal_level',
+      'channel_name',
+      'multicast_ip',
+      'port',
+      'stb_no',
+      'vc_no',
+      'trfc_ip',
+      'mngmnt_ip',
+      'strm',
+      'card'
+    ];
+
+    // Filter update data to only include allowed fields
+    const filteredUpdateData = {};
+    Object.keys(updateData).forEach(key => {
+      if (allowedFields.includes(key)) {
+        filteredUpdateData[key] = updateData[key];
+      }
+    });
+
+    // Call service to update the streamer
+    const updatedStreamer = await statisticsService.updateStreamer(id, filteredUpdateData);
+
+    if (!updatedStreamer) {
+      return res.status(404).json({ error: "Streamer not found" });
+    }
+
+    res.json({
+      message: "Streamer updated successfully",
+      data: updatedStreamer
+    });
+
+  } catch (err) {
+    console.error("Error in updateStreamer controller:", err);
+
+    // Handle specific error cases
+    if (err.message?.includes('not found')) {
+      return res.status(404).json({ error: "Streamer not found" });
+    }
+
+    res.status(500).json({ error: "Failed to update streamer" });
+  }
+};
+
 
 export default {
   login,
@@ -213,6 +297,8 @@ export default {
   addResortIncident,
   getAllIncidentReports,
   updateIncidentReport,
-  deleteResortIncident
+  deleteResortIncident,
+  getStreamers,
+  updateStreamer
 }
 

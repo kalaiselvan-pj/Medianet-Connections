@@ -20,7 +20,7 @@ function ForgotPassword({ open, handleClose }) {
 
     try {
       const res = await fetch(
-        "http://localhost:5000/statistics/login/forgot-password",
+        `${process.env.REACT_APP_LOCALHOST}/statistics/login/forgot-password`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -6,6 +6,7 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import ListIcon from "@mui/icons-material/List";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import SecurityIcon from "@mui/icons-material/Security";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import LogoutIcon from '@mui/icons-material/Logout';
 import { canAccess } from "../rbac/canAccess";
 import medianetLogo from "../assets/medianet_transparent_logo.png";
@@ -31,33 +32,43 @@ const Sidebar = () => {
       <div className="menubar" style={{ flexGrow: 1 }}>
         <div className="menulist">
           <img src={medianetLogo} alt="Medianet Logo" className="mdn-logo" />
-          <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Islands Connection</h2>
+          <h2 style={{ textAlign: "center", marginBottom: "15px" }}>Islands Connection</h2>
         </div>
 
         <div className="dashboardbutton">
           {canAccess("dashboard") && (
             <button onClick={() => navigate("/dashboard")} className={`lhs_button ${isActive("/dashboard") ? "active" : ""}`}>
-              <DashboardIcon style={{ marginRight: "8px", fontSize: "20px" }} /> Dashboard
+              <DashboardIcon className="lhs-icons" /> Dashboard
             </button>
           )}
 
           {canAccess("resortList") && (
             <button onClick={() => navigate("/listview")} className={`lhs_button ${isActive("/listview") ? "active" : ""}`}>
-              <ListIcon style={{ marginRight: "8px", fontSize: "20px" }} /> Resorts List View
+              <ListIcon className="lhs-icons" /> Resorts List View
             </button>
           )}
 
           {canAccess("resortIncidents") && (
             <button onClick={() => navigate("/resort-incidents")} className={`lhs_button ${isActive("/resort-incidents") ? "active" : ""}`}>
-              <ReportProblemIcon style={{ marginRight: "8px", fontSize: "20px" }} /> Resort Incident Reports
+              <ReportProblemIcon className="lhs-icons" /> Resort Incident Reports
+            </button>
+          )}
+
+          {canAccess("streamerConfig") && (
+            <button
+              onClick={() => navigate("/upload-streamer-config")}
+              className={`lhs_button ${isActive("/upload-streamer-config") ? "active" : ""}`}
+            >
+              <CloudUploadIcon className="lhs-icons" /> Streamer Configuration
             </button>
           )}
 
           {canAccess("rbacManagement") && (
             <button onClick={() => navigate("/rbac-management")} className={`lhs_button ${isActive("/rbac-management") ? "active" : ""}`}>
-              <SecurityIcon style={{ marginRight: "8px", fontSize: "20px" }} /> RBAC Management
+              <SecurityIcon className="lhs-icons" /> RBAC Management
             </button>
           )}
+
         </div>
       </div>
 

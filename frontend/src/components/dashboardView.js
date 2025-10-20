@@ -11,7 +11,6 @@ import {
   Pie,
   Cell,
   LabelList,
-  ResponsiveContainer,
 } from "recharts";
 
 const COLORS = [
@@ -33,7 +32,7 @@ const DashboardView = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("http://localhost:5000/statistics/getAllResorts");
+        const res = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/getAllResorts`);
         if (!res.ok) throw new Error("Failed to fetch data");
         const json = await res.json();
 
@@ -120,59 +119,56 @@ const DashboardView = () => {
           padding: "20px 40px",
           width: "fit-content",
           margin: "20px auto",
-          // gap: "3rem",
         }}
       >
         {/* Pie Chart */}
-        <div>
-          <ResponsiveContainer width={400} height={400}>
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                outerRadius={120}
-                dataKey="Resorts"
-                labelLine={false}
-                onClick={(_, index) => setActiveIndex(index)}
-              >
-                {data.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                    stroke={index === activeIndex ? "#000" : "#fff"}
-                    strokeWidth={index === activeIndex ? 3 : 1}
-                  />
-                ))}
-
-                {/* ✅ React LabelList with Resort Name + Percentage */}
-                <LabelList
-                  position="inside"
-                  content={({ x, y, value, index }) => {
-                    const name = data[index]?.resort_name || "";
-                    const percent = ((value / totalResorts) * 100).toFixed(0);
-                    return (
-                      <text
-                        x={x}
-                        y={y}
-                        fill="#fff"
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        style={{
-                          fontWeight: "bold",
-                          fontSize: "13px",
-                          opacity: index === activeIndex ? 1 : 0.9,
-                        }}
-                      >
-                        {`${name} (${percent}%)`}
-                      </text>
-                    );
-                  }}
+        <div >
+          <PieChart width={400} height={400}>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              outerRadius={120}
+              dataKey="Resorts"
+              labelLine={false}
+              onClick={(_, index) => setActiveIndex(index)}
+            >
+              {data.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={COLORS[index % COLORS.length]}
+                  stroke={index === activeIndex ? "#000" : "#fff"}
+                  strokeWidth={index === activeIndex ? 3 : 1}
                 />
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+              ))}
+
+              {/*  React LabelList with Resort Name + Percentage */}
+              <LabelList
+                position="inside"
+                content={({ x, y, value, index }) => {
+                  const name = data[index]?.resort_name || "";
+                  const percent = ((value / totalResorts) * 100).toFixed(0);
+                  return (
+                    <text
+                      x={x}
+                      y={y}
+                      fill="#fff"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      style={{
+                        fontWeight: "bold",
+                        fontSize: "13px",
+                        opacity: index === activeIndex ? 1 : 0.9,
+                      }}
+                    >
+                      {`${name} (${percent}%)`}
+                    </text>
+                  );
+                }}
+              />
+            </Pie>
+            <Tooltip />
+          </PieChart>
         </div>
 
         {/* Legend (Clickable List) */}

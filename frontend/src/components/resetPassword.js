@@ -26,7 +26,7 @@ export default function ResetPassword() {
       const hashedPassword = SHA256(password).toString();
 
       const res = await fetch(
-        "http://localhost:5000/statistics/login/reset-password",
+        `${process.env.REACT_APP_LOCALHOST}/statistics/login/reset-password`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

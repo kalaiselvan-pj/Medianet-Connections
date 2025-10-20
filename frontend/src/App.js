@@ -8,6 +8,7 @@ import DashboardLayout from "./components/dashboardLayout";
 import Toaster from "./components/common/toaster";
 import IncidentReports from "./components/incident-reports"
 import Rbac from "./components/rbac";
+import StreamerConfig from "./components/streamer-config"
 
 // Create Auth Context
 const AuthContext = createContext();
@@ -117,6 +118,17 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <Rbac />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/upload-streamer-config"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <StreamerConfig />
                 </DashboardLayout>
               </ProtectedRoute>
             }

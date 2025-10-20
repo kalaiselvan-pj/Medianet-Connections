@@ -239,33 +239,64 @@ const getDashboardStats = async () => {
   }
 };
 
-const addResort = async (data) => {
-  try {
-    const resort_id = uuidv4(); // generate new uuid
-    await db.query(
-      `INSERT INTO resort_list 
-       (resort_id, resort_name, category, island, email, phone_number, actions, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, null, NOW(), null)`,
-      [resort_id, data.resort_name, data.category, data.island, data.email, data.phone_number]
-    );
-  } catch (err) {
-    // Check for duplicate entry error (MySQL error code 1062)
-    if (err.code === "ER_DUP_ENTRY") {
-      console.error("Duplicate resort detected:", err.message);
-      throw new Error("Resort already exists!");
-    }
-    console.error("Error inserting resort:", err);
-    throw err;
-  }
+// make sure your db instance is correctly imported
+// Converts JS date to MySQL DATETIME format
+const toMySQLDateTime = (date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  return d.toISOString().slice(0, 19).replace("T", " ");
 };
 
+export const addResort = async (data) => {
+  if (!data) throw new Error("Request body is missing");
+
+  const resort_id = uuidv4();
+
+  await db.query(
+    `INSERT INTO resort_list 
+     (resort_id, resort_name, category, island, email, phone_number,
+      iptv_vendor, distribution_model, tvro_type, tvro_dish, tv_points, 
+      horizontal_signal, vertical_signal, horizontal_link_margin, vertical_link_margin,
+       signal_level_timestamp,
+      actions, created_at, updated_at) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ?, NOW(), NOW())`,
+    [
+      resort_id,
+      data.resort_name,
+      data.category,
+      data.island || null,
+      data.email || null,
+      data.phone_number || null,
+      data.iptv_vendor || null,
+      data.distribution_model || null,
+      data.tvro_type || null,
+      data.tvro_dish || null,
+      data.tv_points || null,
+      data.horizontal_signal || null,
+      data.vertical_signal || null,
+      data.horizontal_link_margin || null,
+      data.vertical_link_margin || null,
+
+      toMySQLDateTime(data.signal_level_timestamp) || null,
+      data.actions || null
+    ]
+  );
+
+  return { resort_id, message: "Resort added successfully" };
+};
+
+
+
+//  Get all resorts
 export const getResorts = async () => {
   try {
-    // Select resorts where action is NULL
     const rows = await db.query(
-      `SELECT resort_id, resort_name, category, island, email, phone_number 
+      `SELECT resort_id, resort_name, category, island, email, phone_number,
+              iptv_vendor, distribution_model, tvro_type, tvro_dish, tv_points, 
+              horizontal_signal, vertical_signal, horizontal_link_margin, vertical_link_margin,
+              signal_level_timestamp
        FROM resort_list 
-       WHERE (actions IS NULL OR actions = '')
+           WHERE actions IS NULL OR actions = ''
        ORDER BY resort_name ASC`
     );
 
@@ -276,10 +307,11 @@ export const getResorts = async () => {
   }
 };
 
-const updateResort = async (resort_id, data) => {
+// Update resort
+export const updateResort = async (resort_id, data) => {
   try {
-    // Step 1: Mark old record as Updated
-    const rows = await db.query(
+    // Mark old record as updated
+    await db.query(
       `UPDATE resort_list
        SET updated_at = NOW(),
            actions = 'Updated'
@@ -287,22 +319,38 @@ const updateResort = async (resort_id, data) => {
       [resort_id]
     );
 
-    // Step 2: Insert a new record with new UUID and updated data
+    // Insert new record with new UUID
     const newResortId = uuidv4();
-
     await db.query(
       `INSERT INTO resort_list 
-       (resort_id, resort_name, category, island, email, phone_number,actions, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?,NULL, NOW(), NOW())`,
+       (resort_id, resort_name, category, island, email, phone_number,
+        iptv_vendor, distribution_model, tvro_type, tvro_dish, tv_points, 
+        horizontal_signal, vertical_signal, horizontal_link_margin, vertical_link_margin,
+       signal_level_timestamp,
+        actions, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         newResortId,
         data.resort_name || null,
         data.category || null,
         data.island || null,
         data.email || null,
-        data.phone_number || null
+        data.phone_number || null,
+        data.iptv_vendor || null,
+        data.distribution_model || null,
+        data.tvro_type || null,
+        data.tvro_dish || null,
+        data.tv_points || null,
+        data.horizontal_signal || null,
+        data.vertical_signal || null,
+        data.horizontal_link_margin || null,
+        data.vertical_link_margin || null,
+        toMySQLDateTime(data.signal_level_timestamp) || null,
+        data.actions || null
       ]
     );
+
+    return { newResortId, message: "Resort updated successfully" };
 
   } catch (err) {
     console.error("Error updating resort:", err);
@@ -310,10 +358,15 @@ const updateResort = async (resort_id, data) => {
   }
 };
 
-// Delete resort
-const deleteResort = async (resort_id) => {
+// Soft delete resort
+export const deleteResort = async (resort_id) => {
   try {
-    await db.query("UPDATE resort_list SET updated_at= NOW() , actions='deleted' WHERE resort_id = ?", [resort_id]);
+    await db.query(
+      `UPDATE resort_list 
+       SET updated_at = NOW(), actions = 'Deleted' 
+       WHERE resort_id = ?`,
+      [resort_id]
+    );
   } catch (err) {
     console.error("Error deleting resort:", err);
     throw err;
@@ -399,6 +452,143 @@ const deleteResortIncident = async (incident_id) => {
   }
 };
 
+export const getAllStreamers = async (resortName = null) => {
+  try {
+    // 1. Define the base query and parameters (same for vertical and horizontal)
+    const baseQuery = `
+      SELECT 
+        streamer_config_id,
+        resort_name,
+        signal_level,
+        channel_name,
+        multicast_ip,
+        port,
+        stb_no,
+        vc_no,
+        trfc_ip,
+        mngmnt_ip,
+        strm,
+        card
+      FROM streamer_config
+      WHERE signal_level = :signal_level
+      ${resortName ? 'AND resort_name = :resort_name' : ''}
+      ORDER BY resort_name ASC
+    `;
+
+    // 2. Build the parameter objects for each signal level
+    const verticalParams = {
+      signal_level: 'Vertical'
+    };
+
+    const horizontalParams = {
+      signal_level: 'Horizontal'
+    };
+
+    // 3. Conditionally add resort_name parameter to both objects
+    if (resortName) {
+      verticalParams.resort_name = resortName;
+      horizontalParams.resort_name = resortName;
+    }
+
+    // 4. Execute queries using the constructed query and parameters
+
+    // Fetch Vertical Streamers
+    const vertical = await db.query(baseQuery, verticalParams);
+
+    // Fetch Horizontal Streamers
+    const horizontal = await db.query(baseQuery, horizontalParams);
+
+    // Return both as an object
+    return { vertical, horizontal };
+
+  } catch (err) {
+    console.error("Error fetching streamer configuration:", err);
+    // Re-throw the error to be caught by the controller
+    throw err;
+  }
+};
+
+export const updateStreamer = async (streamerConfigId, updateData) => {
+  try {
+    // Validate that we have data to update
+    if (!updateData || Object.keys(updateData).length === 0) {
+      throw new Error("No valid fields to update");
+    }
+
+    // Build the dynamic SET clause for the UPDATE query
+    const setClause = Object.keys(updateData)
+      .map(key => `${key} = :${key}`)
+      .join(', ');
+
+    // Add updated_at timestamp if you have that column
+    // NOTE: This logic is slightly flawed. If updateData has updated_at, you still need
+    // to include it in the setClause, but let's stick to the original intent for now:
+    const finalSetClause = updateData.updated_at
+      ? setClause
+      : `${setClause}, updated_at = CURRENT_TIMESTAMP`;
+
+    // 1. Construct the UPDATE query (REMOVED RETURNING *)
+    const updateQuery = `
+      UPDATE streamer_config 
+      SET ${finalSetClause}
+      WHERE streamer_config_id = :streamer_config_id
+    `;
+
+    // 2. Construct the SELECT query to fetch the updated row
+    const selectQuery = `
+      SELECT * FROM streamer_config 
+      WHERE streamer_config_id = :streamer_config_id
+    `;
+
+    // Prepare parameters for the query
+    const params = {
+      streamer_config_id: streamerConfigId,
+      ...updateData
+    };
+
+    // 3. Execute the update query
+    // In MySQL, `db.query` for UPDATE typically returns an object with `affectedRows`.
+    const updateResult = await db.query(updateQuery, params);
+
+    // Check if any row was updated (assuming affectedRows is available on updateResult)
+    const affectedRows = updateResult?.affectedRows || 0;
+
+    if (affectedRows === 0) {
+      // Execute a SELECT to confirm the ID doesn't exist, if desired, 
+      // but for simplicity, we throw if 0 rows were changed.
+      throw new Error(`Streamer with ID ${streamerConfigId} not found or no changes were made`);
+    }
+
+    // 4. Execute the select query to get the updated data
+    const selectResult = await db.query(selectQuery, { streamer_config_id: streamerConfigId });
+
+    // Check if the row was retrieved
+    if (!selectResult || selectResult.length === 0) {
+      // This should ideally not happen if affectedRows > 0, but as a safeguard
+      throw new Error(`Failed to retrieve updated streamer with ID ${streamerConfigId}`);
+    }
+
+    // Return the updated streamer data
+    return selectResult[0];
+
+  } catch (err) {
+    console.error("Error updating streamer configuration:", err);
+
+    // Re-throw the error with more context
+    if (err.message?.includes('not found')) {
+      throw new Error(`Streamer with ID ${streamerConfigId} not found`);
+    }
+
+    // Handle database constraint violations or other errors
+    // Note: The original MySQL error (ER_PARSE_ERROR) will no longer occur here.
+    if (err.message?.includes('unique constraint') || err.message?.includes('duplicate')) {
+      throw new Error("Duplicate entry or constraint violation");
+    }
+
+    throw new Error(`Failed to update streamer: ${err.message}`);
+  }
+};
+
 
 
 // Export using ES module syntax
@@ -418,7 +608,9 @@ export default {
   addResortIncident,
   getAllIncidentReports,
   updateIncidentReport,
-  deleteResortIncident
+  deleteResortIncident,
+  getAllStreamers,
+  updateStreamer
 };
 
 

@@ -12,7 +12,7 @@
     background-color: #569fdfff;
     text-align: left;
     font-weight: bold;
-    width: 97%;
+    width: 98%;
     margin-bottom: 12px;
     transition: background-color 0.3s, box-shadow 0.3s;
 }
@@ -71,6 +71,11 @@
 .mdn-logo {
     display: block;
     margin: 23px auto 0px;
-    width: 4rem;
-    height: 3.8rem;
+    width: 3.8rem;
+    height: 3.5rem;
+}
+
+.lhs-icons {
+    margin-right: 8px;
+    font-size: 20px;
 }

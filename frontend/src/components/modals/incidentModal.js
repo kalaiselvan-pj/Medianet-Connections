@@ -34,7 +34,7 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
 
     // Fetch resorts on mount
     useEffect(() => {
-        fetch("http://localhost:5000/statistics/getAllResorts")
+        fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/getAllResorts`)
             .then(res => res.json())
             .then(data => setResorts(data))
             .catch(err => console.error(err));
@@ -140,11 +140,11 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
         };
 
         let method = "POST";
-        let url = "http://localhost:5000/statistics/resortIncidentReports";
+        let url = `${process.env.REACT_APP_LOCALHOST}/statistics/resortIncidentReports`;
 
         if (incidentData && incidentData.incident_id) {
             method = "PUT";
-            url = `http://localhost:5000/statistics/updateIncidentReport/${incidentData.incident_id}`;
+            url = `${process.env.REACT_APP_LOCALHOST}/statistics/updateIncidentReport/${incidentData.incident_id}`;
             incidentToSave.incident_id = incidentData.incident_id;
         }
 
@@ -191,7 +191,7 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
             open={open}
             onClose={(event, reason) => reason !== "backdropClick" && onClose()}
             PaperProps={{
-                style: { width: dialogWidth, maxHeight: "90vh", maxWidth: "56vw" }
+                style: { width: dialogWidth, maxHeight: "92vh", maxWidth: "56vw" }
             }}
         >
             <DialogTitle sx={{

@@ -5,10 +5,6 @@ import {
     DialogContent,
     DialogActions,
     Button,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     Table,
     TableBody,
     TableCell,
@@ -30,6 +26,7 @@ const RbacUserModal = ({ isOpen, onClose, onSave, userData }) => {
         dashboard: { view: false, edit: false },
         resortList: { view: false, edit: false },
         resortIncidents: { view: false, edit: false },
+        streamerConfig: { view: false, edit: false },
     });
     const [originalData, setOriginalData] = useState(null);
     const [isChanged, setIsChanged] = useState(false); // track changes
@@ -78,7 +75,7 @@ const RbacUserModal = ({ isOpen, onClose, onSave, userData }) => {
             return;
         }
 
-        fetch(`http://localhost:5000/statistics/updateUser/${userData.login_id}`, {
+        fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/updateUser/${userData.login_id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -176,9 +173,7 @@ const RbacUserModal = ({ isOpen, onClose, onSave, userData }) => {
             </DialogContent>
 
             <DialogActions>
-                <Button onClick={onClose} color="secondary" variant="outlined">
-                    Cancel
-                </Button>
+                <Button onClick={onClose} color="primary">Cancel</Button>
                 <Button onClick={handleSave} color="primary" variant="contained" disabled={!isChanged}>
                     UPDATE
                 </Button>
