@@ -8,7 +8,11 @@ const app = express();
 
 // Middleware
 app.use(cors());
+
+// Keep this for JSON-only requests
 app.use(express.json());
+// For URL-encoded form data (optional)
+app.use(express.urlencoded({ extended: true }));
 
 // ✅ Connect to database
 db.connectDB();
