@@ -22,7 +22,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import Chip from '@mui/material/Chip';
 import dayjs from "dayjs";
 import IncidentModal from "./modals/incidentModal";
-import { FormControl, Select, MenuItem, IconButton, TextField, InputAdornment } from "@mui/material"; // Added TextField, InputAdornment
+import { FormControl, Select, MenuItem, IconButton, TextField, InputAdornment } from "@mui/material";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFilter } from '@fortawesome/free-solid-svg-icons';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -61,12 +61,17 @@ const IncidentReports = () => {
         );
 
     const exportToCSV = () => {
-        const headers = ["No.", "Resort Name", "Category", "Incident", "Status", "Date"];
+        // ⭐ UPDATED: Removed 'Category' and added new fields to CSV headers
+        const headers = ["No.", "Resort Name", "Incident", "Assigned To", "Contact Name", "Contact Number", "Status", "Date"];
+
+        // ⭐ UPDATED: Used 'incident' (renamed from incident) and included new fields in CSV rows
         const rows = filteredIncidents.map((item, index) => [
             index + 1,
             `"${item.resort_name}"`,
-            item.category,
-            `"${item.notes}"`,
+            `"${item.incident || item.incident}"`, // Use 'incident', fallback to 'incident' if needed
+            `"${item.assigned_to}"`,
+            `"${item.contact_name || ''}"`, // Handle potential null/empty optional fields
+            `"${item.contact_number || ''}"`, // Handle potential null/empty optional fields
             item.status,
             dayjs(item.incident_date).format("DD MMM YYYY"),
         ]);
@@ -189,14 +194,16 @@ const IncidentReports = () => {
         setSelectedIncident(null);
     };
 
-    // Define table column headers
+    // ⭐ UPDATED: Define table column headers
     const columns = [
         { id: 'no', label: 'No.', minWidth: 50 },
         { id: 'resort_name', label: 'Resort Name', minWidth: 150 },
-        { id: 'category', label: 'Category', minWidth: 100 },
         { id: 'incident', label: 'Incident', minWidth: 150 },
         { id: 'status', label: 'Status', minWidth: 100 },
+        { id: 'assigned_to', label: 'Assigned To', minWidth: 120 },
         { id: 'date', label: 'Date', minWidth: 100 },
+        { id: 'contact_name', label: 'Contact Name', minWidth: 120 },
+        { id: 'contact_number', label: 'Contact Number', minWidth: 120 },
     ];
 
 
@@ -285,7 +292,6 @@ const IncidentReports = () => {
                         startIcon={<AddIcon fontSize="small" />}
                         onClick={handleAdd}
                         className="add-btn"
-                    // style={{ borderRadius: "9px", textTransform: "none", backgroundColor: "#569fdfff" }}
                     >
                         Add
                     </Button>
@@ -323,12 +329,14 @@ const IncidentReports = () => {
                                             ? incident.resort_name.slice(0, 25) + "..."
                                             : incident.resort_name}
                                     </TableCell>
-                                    <TableCell>{incident.category}</TableCell>
+                                    {/* <TableCell>{incident.category}</TableCell> Removed Category Cell */}
                                     <TableCell>
-                                        {incident.notes.length > 20
-                                            ? incident.notes.slice(0, 20) + "..."
-                                            : incident.notes}
+                                        {/* ⭐ UPDATED: Use 'incident' property from API, fallback to 'incident' */}
+                                        {(incident.incident || incident.incident || "").length > 20
+                                            ? (incident.incident || incident.incident || "").slice(0, 20) + "..."
+                                            : (incident.incident || incident.incident)}
                                     </TableCell>
+
                                     <TableCell>
                                         <Chip
                                             label={incident.status}
@@ -347,7 +355,13 @@ const IncidentReports = () => {
                                             }}
                                         />
                                     </TableCell>
+                                    {/*   Assigned To */}
+                                    <TableCell>{incident.assigned_to}</TableCell>
                                     <TableCell>{dayjs(incident.incident_date).format("DD MMM YYYY")}</TableCell>
+                                    {/*   Contact Name */}
+                                    <TableCell>{incident.contact_name}</TableCell>
+                                    {/*  Contact Number */}
+                                    <TableCell>{incident.contact_number}</TableCell>
 
                                     <TableCell align="center">
                                         <IconButton onClick={(e) => handleMenuOpen(e, incident)}>
@@ -397,7 +411,8 @@ const IncidentReports = () => {
                             ))}
                             {currentIncidents.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={canAccess("resortIncidents", "edit") ? 7 : 6} align="center">
+                                    {/*  UPDATED: Colspan increased to account for new columns */}
+                                    <TableCell colSpan={canAccess("resortIncidents", "edit") ? 9 : 8} align="center">
                                         No incidents found matching the criteria.
                                     </TableCell>
                                 </TableRow>
@@ -465,16 +480,18 @@ const IncidentReports = () => {
 
             {/* View Dialog */}
             <Dialog open={viewOpen} onClose={handleCloseView}
-                PaperProps={{ sx: { width: "600px", maxWidth: "90%" } }}>
+                PaperProps={{ sx: { width: "55%", maxWidth: "65%" } }}>
                 <DialogTitle>Incident Details</DialogTitle>
                 <DialogContent dividers sx={{ backgroundColor: "#f9f9f9" }}>
                     {selectedIncident && (
                         <div>
                             <p><strong>Resort Name:</strong> {selectedIncident.resort_name}</p>
-                            <p><strong>Category:</strong> {selectedIncident.category}</p>
-                            <p><strong>Incident:</strong> {selectedIncident.notes}</p>
                             <p><strong>Status:</strong> {selectedIncident.status}</p>
+                            <p><strong>Assigned To:</strong> {selectedIncident.assigned_to}</p>
+                            <p><strong>Contact Person:</strong> {selectedIncident.contact_name || 'N/A'}</p>
+                            <p><strong>Contact Number:</strong> {selectedIncident.contact_number || 'N/A'}</p>
                             <p><strong>Date:</strong> {dayjs(selectedIncident.incident_date).format("DD MMM YYYY")}</p>
+                            <p><strong>Incident:</strong> {selectedIncident.incident || selectedIncident.incident}</p>
                         </div>
                     )}
                 </DialogContent>

@@ -98,7 +98,7 @@ const Rbac = () => {
                 </button>
             </div>
 
-            <Paper sx={{ maxHeight: "84vh", overflow: "auto" }}>
+            <Paper sx={{ height: "84vh", overflow: "auto" }}>
                 <Table>
                     <TableHead>
                         <TableRow>
