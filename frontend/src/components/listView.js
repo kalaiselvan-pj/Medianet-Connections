@@ -246,10 +246,10 @@ const ListView = () => {
         escapeCSV(item.horizontal_link_margin),
         escapeCSV(item.vertical_link_margin),
         escapeCSV(item.signal_level_timestamp),
-        escapeCSV(documentLinks.survey_form),
-        escapeCSV(documentLinks.service_acceptance_form),
-        escapeCSV(documentLinks.dish_antenna_image),
-        escapeCSV(documentLinks.signal_image)
+        // escapeCSV(documentLinks.survey_form),
+        // escapeCSV(documentLinks.service_acceptance_form),
+        // escapeCSV(documentLinks.dish_antenna_image),
+        // escapeCSV(documentLinks.signal_image)
       ];
     });
 
