@@ -31,6 +31,8 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import ImageIcon from "@mui/icons-material/Image";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { showToast } from "../common/toaster";
+import { format, parseISO } from 'date-fns';
+
 
 const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort }) => {
   const isEditMode = !!selectedResort;
@@ -106,27 +108,24 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
           vertical_link_margin: selectedResort.vertical_link_margin || "",
         });
         setContacts(selectedResort.contact_details || []);
-        // setSignalTimestamp(selectedResort.signal_level_timestamp || "");
-        // **SIMPLEST SOLUTION**: Use the timestamp as-is if it's already in Maldives time
-        // Just format it properly without timezone conversion
+
+        // Handle timestamp with date-fns
         const formatTimestamp = (timestamp) => {
           if (!timestamp) return "";
 
-          const date = new Date(timestamp);
+          try {
+            // Parse the timestamp (handles both UTC and local times)
+            const date = typeof timestamp === 'string' ? parseISO(timestamp) : new Date(timestamp);
 
-          // Format as YYYY-MM-DD HH:mm:ss (no timezone adjustment)
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const hours = String(date.getHours()).padStart(2, '0');
-          const minutes = String(date.getMinutes()).padStart(2, '0');
-          const seconds = String(date.getSeconds()).padStart(2, '0');
-
-          return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            // Format as YYYY-MM-DD HH:mm:ss in local time
+            return format(date, 'yyyy-MM-dd HH:mm:ss');
+          } catch (error) {
+            console.error('Error formatting timestamp:', error);
+            return timestamp || ""; // Return original if error
+          }
         };
 
-        setSignalTimestamp(formatTimestamp(selectedResort.signal_level_timestamp) || "");
-
+        setSignalTimestamp(formatTimestamp(selectedResort.signal_level_timestamp));
 
         // Set URLs for existing files
         setSurveyFormUrl(bufferToUrl(selectedResort.survey_form, 'application/pdf'));
