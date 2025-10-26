@@ -106,7 +106,27 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
           vertical_link_margin: selectedResort.vertical_link_margin || "",
         });
         setContacts(selectedResort.contact_details || []);
-        setSignalTimestamp(selectedResort.signal_level_timestamp || "");
+        // setSignalTimestamp(selectedResort.signal_level_timestamp || "");
+        // **SIMPLEST SOLUTION**: Use the timestamp as-is if it's already in Maldives time
+        // Just format it properly without timezone conversion
+        const formatTimestamp = (timestamp) => {
+          if (!timestamp) return "";
+
+          const date = new Date(timestamp);
+
+          // Format as YYYY-MM-DD HH:mm:ss (no timezone adjustment)
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          const seconds = String(date.getSeconds()).padStart(2, '0');
+
+          return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        };
+
+        setSignalTimestamp(formatTimestamp(selectedResort.signal_level_timestamp) || "");
+
 
         // Set URLs for existing files
         setSurveyFormUrl(bufferToUrl(selectedResort.survey_form, 'application/pdf'));
@@ -585,7 +605,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
 
             {/* Signal Levels */}
             <Box sx={{ mb: 0 }}>
-              <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
+              <Typography variant="h6" color="primary" sx={{ mb: 1, fontWeight: "bold" }}>
                 Signal Levels
               </Typography>
 
@@ -1195,7 +1215,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
 
           {/* RHS */}
           <Grid item xs={12} md={6} sx={{ display: "flex", flexDirection: "column", gap: 2.6 }}>
-            <Typography variant="h6" color="primary" sx={{ mb: 0 }}>
+            <Typography variant="h6" color="primary" sx={{ mb: 0, fontWeight: "bold" }}>
               TV Points & Distribution
             </Typography>
             <TextField
@@ -1235,7 +1255,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
               <MenuItem value="hybrid">Hybrid</MenuItem>
             </Select>
 
-            <Typography variant="h6" color="primary" sx={{ mb: 0, mt: 2 }}>
+            <Typography variant="h6" color="primary" sx={{ mb: 0, mt: 2, fontWeight: "bold" }}>
               TVRO Information
             </Typography>
             <Grid item xs={12}>

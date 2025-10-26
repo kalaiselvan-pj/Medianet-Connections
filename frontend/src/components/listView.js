@@ -156,6 +156,7 @@ const ListView = () => {
   const medianetCount = tableData.filter((r) => r.category === "Medianet").length;
   const ooredooCount = tableData.filter((r) => r.category === "Ooredoo").length;
 
+
   // Function to convert buffer data to download URL
   const bufferToDownloadUrl = (bufferData, filename, mimeType) => {
     if (!bufferData || !bufferData.data) return null;
@@ -169,29 +170,76 @@ const ListView = () => {
     }
   };
 
-  // Function to generate document download links for CSV
+  // Function to generate document download links for CSV using buffer data
   const generateDocumentLinks = (resort) => {
-    const baseUrl = window.location.origin;
-    const resortId = resort.resort_id;
+    // Determine MIME types based on file content or file names
+    const getMimeType = (document, defaultType = 'application/octet-stream') => {
+      if (!document) return defaultType;
+
+      // If you have file type information in your document object, use it
+      if (document.fileType) {
+        switch (document.fileType.toLowerCase()) {
+          case 'pdf': return 'application/pdf';
+          case 'jpg': case 'jpeg': return 'image/jpeg';
+          case 'png': return 'image/png';
+          case 'gif': return 'image/gif';
+          default: return defaultType;
+        }
+      }
+
+      // Fallback to common types based on field name
+      if (document.filename) {
+        const ext = document.filename.split('.').pop().toLowerCase();
+        switch (ext) {
+          case 'pdf': return 'application/pdf';
+          case 'jpg': case 'jpeg': return 'image/jpeg';
+          case 'png': return 'image/png';
+          case 'gif': return 'image/gif';
+          default: return defaultType;
+        }
+      }
+
+      return defaultType;
+    };
 
     const links = {
       survey_form: resort.survey_form && resort.survey_form.data
-        ? `${baseUrl}/api/documents/survey_form/${resortId}`
+        ? bufferToDownloadUrl(
+          resort.survey_form,
+          `survey_form_${resort.resort_id}.pdf`,
+          getMimeType(resort.survey_form, 'application/pdf')
+        )
         : "Not Available",
+
       service_acceptance_form: resort.service_acceptance_form && resort.service_acceptance_form.data
-        ? `${baseUrl}/api/documents/service_acceptance_form/${resortId}`
+        ? bufferToDownloadUrl(
+          resort.service_acceptance_form,
+          `service_acceptance_form_${resort.resort_id}.pdf`,
+          getMimeType(resort.service_acceptance_form, 'application/pdf')
+        )
         : "Not Available",
+
       dish_antenna_image: resort.dish_antena_image && resort.dish_antena_image.data
-        ? `${baseUrl}/api/documents/dish_antenna_image/${resortId}`
+        ? bufferToDownloadUrl(
+          resort.dish_antena_image,
+          `dish_antenna_${resort.resort_id}.jpg`,
+          getMimeType(resort.dish_antena_image, 'image/jpeg')
+        )
         : "Not Available",
+
       signal_image: resort.signal_image && resort.signal_image.data
-        ? `${baseUrl}/api/documents/signal_image/${resortId}`
+        ? bufferToDownloadUrl(
+          resort.signal_image,
+          `signal_image_${resort.resort_id}.jpg`,
+          getMimeType(resort.signal_image, 'image/jpeg')
+        )
         : "Not Available"
     };
 
     return links;
   };
 
+  // Function to download individual documents
   const exportToCSV = () => {
     const headers = [
       "No.",
@@ -246,10 +294,10 @@ const ListView = () => {
         escapeCSV(item.horizontal_link_margin),
         escapeCSV(item.vertical_link_margin),
         escapeCSV(item.signal_level_timestamp),
-        // escapeCSV(documentLinks.survey_form),
-        // escapeCSV(documentLinks.service_acceptance_form),
-        // escapeCSV(documentLinks.dish_antenna_image),
-        // escapeCSV(documentLinks.signal_image)
+        escapeCSV(documentLinks.survey_form),
+        escapeCSV(documentLinks.service_acceptance_form),
+        escapeCSV(documentLinks.dish_antenna_image),
+        escapeCSV(documentLinks.signal_image)
       ];
     });
 
@@ -265,7 +313,6 @@ const ListView = () => {
     showToast("CSV with document links downloaded successfully!", "success");
   };
 
-  // Function to download individual documents
   const downloadDocument = (bufferData, filename, mimeType) => {
     const url = bufferToDownloadUrl(bufferData, filename, mimeType);
     if (url) {
@@ -421,7 +468,10 @@ const ListView = () => {
               justifyContent: "center",
               padding: "8px 12px",
               height: "2.3rem",
-              width: "5rem"
+              width: "5rem",
+              "&:hover": {
+                backgroundColor: "#1e5dbd",
+              },
             }}
           >
             Add
@@ -456,6 +506,7 @@ const ListView = () => {
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     tableLayout: "fixed",
+                    height: 32,
                   }}
                 >
                   {label}
@@ -470,7 +521,6 @@ const ListView = () => {
                   colSpan={8}
                   align="center"
                   sx={{
-                    height: "200px",
                     fontSize: "16px",
                     color: "text.secondary",
                     fontStyle: "italic"

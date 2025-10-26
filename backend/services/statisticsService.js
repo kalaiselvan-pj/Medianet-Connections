@@ -249,7 +249,9 @@ const getDashboardStats = async () => {
 const toMySQLDateTime = (date) => {
   if (!date) return null;
   const d = new Date(date);
-  return d.toISOString().slice(0, 19).replace("T", " ");
+  const offset = d.getTimezoneOffset(); // in minutes
+  const localTime = new Date(d.getTime() - offset * 60000);
+  return localTime.toISOString().slice(0, 19).replace("T", " ");
 };
 
 // --- Add Resort ---
@@ -372,10 +374,19 @@ export const updateResort = async (resort_id, data) => {
     ]
   );
 
+  // 2. Update streamer configs table to link to new resort
+  await db.query(
+    `UPDATE streamer_config
+   SET resort_id = ?
+   WHERE resort_id = ?`,
+    [newResortId, resort_id]
+  );
+
+
+
   return { newResortId, message: "Resort updated successfully" };
 };
 
-//Get Resorts
 export const getResorts = async () => {
   try {
     const rows = await db.query(
@@ -386,13 +397,14 @@ export const getResorts = async () => {
 
     return rows.map(row => ({
       ...row,
+      signal_level_timestamp: row.signal_level_timestamp ? new Date(row.signal_level_timestamp).toISOString() : null,
       contact_details: row.contact_details
         ? JSON.parse(row.contact_details)
         : []
     }));
   } catch (error) {
     console.error('Database error while fetching resorts:', error);
-    throw error; // rethrow so the controller can handle it
+    throw error;
   }
 };
 
@@ -535,7 +547,6 @@ const updateIncidentReport = async (incident_id, data) => {
   }
 };
 
-
 const deleteResortIncident = async (incident_id) => {
   try {
     await db.query(
@@ -551,49 +562,34 @@ const deleteResortIncident = async (incident_id) => {
 };
 
 
-export const getStreamerResortNames = async () => {
-  try {
-    const query = `
-      SELECT DISTINCT resort_name
-      FROM streamer_config
-      WHERE resort_name IS NOT NULL
-      ORDER BY resort_name ASC
-    `;
-
-    const rows = await db.query(query); // ✅ remove destructuring
-
-    // If db.query returns an object (not array), handle it safely
-    const resultArray = Array.isArray(rows) ? rows : rows[0] || [];
-
-    const resortNames = resultArray.map(r => r.resort_name);
-
-    return resortNames;
-  } catch (err) {
-    console.error("Error fetching resort names:", err);
-    throw err;
-  }
-};
-
-
 export const addStreamerConfig = async (data) => {
-
   if (!data) throw new Error("Request body is missing");
 
   const streamer_config_id = uuidv4();
 
-  // Convert arrays to JSON
-  const multicast_ip = JSON.stringify(data.multicast_ip || []);
-  const port = JSON.stringify(data.port || []);
-  const channel_name = JSON.stringify(data.channel_name || []);
+  // Ensure exactly 3 channels for each array
+  const ensureThreeChannels = (array) => {
+    const result = array || [];
+    // Ensure we have exactly 3 items
+    while (result.length < 3) {
+      result.push({ key: '' });
+    }
+    return result.slice(0, 3); // Take only first 3 if more are provided
+  };
+
+  // Apply 3-channel structure to the incoming data
+  const multicast_ip = JSON.stringify(ensureThreeChannels(data.multicast_ip));
+  const port = JSON.stringify(ensureThreeChannels(data.port));
+  const channel_name = JSON.stringify(ensureThreeChannels(data.channel_name));
 
   await db.query(
     `INSERT INTO streamer_config 
-     (streamer_config_id, resort_name, signal_level, card, stb_no, vc_no, strm, 
+     (streamer_config_id, resort_id, signal_level, card, stb_no, vc_no, strm, 
       mngmnt_ip, trfc_ip, multicast_ip, port, channel_name, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       streamer_config_id,
-      data.resort_name || null,
+      data.resort_id || null,
       data.signal_level || null,
       data.card || null,
       data.stb_no || null,
@@ -610,61 +606,132 @@ export const addStreamerConfig = async (data) => {
   return { message: "Streamer configuration added successfully", streamer_config_id };
 };
 
-export const getAllStreamers = async (resortName = null) => {
+export const getAllStreamers = async (resortId = null) => {
   try {
-    // 1. Define the base query and parameters (same for vertical and horizontal)
-    const baseQuery = `
-      SELECT 
-        streamer_config_id,
-        resort_name,
-        signal_level,
-        channel_name,
-        multicast_ip,
-        port,
-        stb_no,
-        vc_no,
-        trfc_ip,
-        mngmnt_ip,
-        strm,
-        card
-      FROM streamer_config
-      WHERE signal_level = :signal_level
-      ${resortName ? 'AND resort_name = :resort_name' : ''}
-      ORDER BY resort_name ASC
-    `;
-
-    // 2. Build the parameter objects for each signal level
-    const verticalParams = {
-      signal_level: 'Vertical'
-    };
-
-    const horizontalParams = {
-      signal_level: 'Horizontal'
-    };
-
-    // 3. Conditionally add resort_name parameter to both objects
-    if (resortName) {
-      verticalParams.resort_name = resortName;
-      horizontalParams.resort_name = resortName;
+    if (!resortId) {
+      return { vertical: [], horizontal: [] };
     }
 
-    // 4. Execute queries using the constructed query and parameters
+    const query = `
+      SELECT * 
+      FROM streamer_config 
+      WHERE resort_id = ? 
+      ORDER BY created_at ASC
+    `;
+    const rows = await db.query(query, [resortId]);
 
-    // Fetch Vertical Streamers
-    const vertical = await db.query(baseQuery, verticalParams);
+    if (!rows || rows.length === 0) {
+      return { vertical: [], horizontal: [] };
+    }
 
-    // Fetch Horizontal Streamers
-    const horizontal = await db.query(baseQuery, horizontalParams);
+    const vertical = [];
+    const horizontal = [];
 
-    // Return both as an object
+    const safeParseJSON = (value) => {
+      if (!value) return [];
+      try {
+        if (Array.isArray(value)) return value;
+        if (typeof value === "string") return JSON.parse(value);
+        return [];
+      } catch (error) {
+        console.error('JSON parse error:', error, 'Value:', value);
+        return [];
+      }
+    };
+
+    // Deep value extraction to handle nested structures
+    const deepExtractValue = (obj) => {
+      if (obj === null || obj === undefined) return '';
+
+      // If it's already a string or number
+      if (typeof obj === 'string' || typeof obj === 'number') {
+        return obj.toString();
+      }
+
+      // If it's an object, look for key property recursively
+      if (typeof obj === 'object') {
+        // If it has a direct key that's a string/number
+        if (obj.key && (typeof obj.key === 'string' || typeof obj.key === 'number')) {
+          return obj.key.toString();
+        }
+
+        // If it has nested key structure
+        if (obj.key && typeof obj.key === 'object') {
+          return deepExtractValue(obj.key);
+        }
+
+        // If it's an array (shouldn't happen here)
+        if (Array.isArray(obj)) {
+          return obj.map(deepExtractValue).join(', ');
+        }
+
+        // Last resort: try to stringify, but avoid [object Object]
+        try {
+          const str = obj.toString();
+          if (str !== '[object Object]') return str;
+        } catch (e) {
+          // Ignore
+        }
+
+        return '';
+      }
+
+      return obj.toString ? obj.toString() : '';
+    };
+
+    // Function to ensure exactly 3 channels in each array
+    const ensureThreeChannels = (arr) => {
+      const normalizedArray = [];
+
+      // Process existing items (up to 3)
+      if (Array.isArray(arr)) {
+        for (let i = 0; i < Math.min(arr.length, 3); i++) {
+          const value = deepExtractValue(arr[i]);
+          normalizedArray.push({ key: value });
+        }
+      }
+
+      // Fill remaining slots with empty objects to make exactly 3
+      while (normalizedArray.length < 3) {
+        normalizedArray.push({ key: '' });
+      }
+
+      return normalizedArray;
+    };
+
+    rows.forEach(row => {
+      const channelName = safeParseJSON(row.channel_name);
+      const multicastIp = safeParseJSON(row.multicast_ip);
+      const port = safeParseJSON(row.port);
+
+      const baseConfig = {
+        streamer_config_id: row.streamer_config_id,
+        resort_id: row.resort_id,
+        signal_level: row.signal_level,
+        // Apply 3-channel structure to all arrays
+        channel_name: ensureThreeChannels(channelName),
+        multicast_ip: ensureThreeChannels(multicastIp),
+        port: ensureThreeChannels(port),
+        stb_no: row.stb_no,
+        vc_no: row.vc_no,
+        trfc_ip: row.trfc_ip,
+        mngmnt_ip: row.mngmnt_ip,
+        strm: row.strm,
+        card: row.card
+      };
+
+      const level = (row.signal_level || "").toLowerCase();
+      if (level === "vertical") vertical.push(baseConfig);
+      else if (level === "horizontal") horizontal.push(baseConfig);
+    });
+
     return { vertical, horizontal };
-
   } catch (err) {
     console.error("Error fetching streamer configuration:", err);
-    // Re-throw the error to be caught by the controller
     throw err;
   }
 };
+
 
 export const updateStreamer = async (streamerConfigId, updateData) => {
   try {
@@ -852,15 +919,9 @@ export default {
   getAllIncidentReports,
   updateIncidentReport,
   deleteResortIncident,
-  getStreamerResortNames,
   addStreamerConfig,
   getAllStreamers,
   updateStreamer,
   deleteStreamerConfig,
   deleteChannelFromConfig
 };
-
-
-
-
-

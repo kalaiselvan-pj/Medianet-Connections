@@ -196,7 +196,7 @@ const IncidentReports = () => {
 
     // ⭐ UPDATED: Define table column headers
     const columns = [
-        { id: 'no', label: 'No.', minWidth: 50 },
+        { id: 'no', label: 'No.', minWidth: 30 },
         { id: 'resort_name', label: 'Resort Name', minWidth: 150 },
         { id: 'incident', label: 'Incident', minWidth: 150 },
         { id: 'status', label: 'Status', minWidth: 100 },

@@ -55,7 +55,6 @@ router.put('/updateIncidentReport/:id', statisticsController.updateIncidentRepor
 router.delete('/deleteResortIncident/:incident_id', statisticsController.deleteResortIncident);
 
 // -------------------- Streamer Config --------------------
-router.get('/getStreamerResortNames', statisticsController.getStreamerResortNames);
 router.post('/addStreamerConfig', statisticsController.addStreamerConfig);
 router.get('/getAllStreamerConfig', statisticsController.getAllStreamers);
 router.put('/updateStreamerConfig/:id', statisticsController.updateStreamer);

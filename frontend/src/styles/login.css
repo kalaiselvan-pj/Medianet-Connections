@@ -163,7 +163,6 @@
 .login-form button {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(135deg, #4a90e2, #357ab8);
   border: none;
   border-radius: 8px;
   color: white;
@@ -191,7 +190,7 @@
   position: relative;
   padding: 10px 24px;
   font-size: 16px;
-  background: #1976d2;
+  background: #2e86de;
   color: #fff;
   border: none;
   border-radius: 6px;

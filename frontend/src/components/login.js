@@ -37,8 +37,17 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrors({});
-    if (!validateForm()) return;
-
+    if (!validateForm()) {
+      // Check which field is invalid and show a clear message
+      if (!email) {
+        showToast("Email is required.", "error");
+      } else if (!password) {
+        showToast("Password is required.", "error");
+      } else {
+        showToast("Please provide valid credentials.", "error");
+      }
+      return;
+    }
     try {
       const hashedPassword = SHA256(password).toString();
 

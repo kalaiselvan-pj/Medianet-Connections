@@ -90,7 +90,7 @@ const Rbac = () => {
 
     return (
         <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
                 <h2 style={{ margin: 0 }}>Role Based Access Control (RBAC)</h2>
                 <button onClick={handleAdd} className="add-user-btn">
                     <AddIcon style={{ marginRight: "6px" }} />

@@ -32,7 +32,6 @@ import * as XLSX from 'xlsx';
 import { showErrorToast, showToast } from './common/toaster';
 import { canAccess } from '../rbac/canAccess';
 
-
 // --- Main Component ---
 function StreamerConfigTable() {
     const [verticalData, setVerticalData] = useState([]);
@@ -40,7 +39,7 @@ function StreamerConfigTable() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [resorts, setResorts] = useState([]);
-    const [resortName, setResortName] = useState('');
+    const [selectedResort, setSelectedResort] = useState(null);
     const [dataLoaded, setDataLoaded] = useState(false);
 
     // Edit state management
@@ -53,7 +52,7 @@ function StreamerConfigTable() {
     const [addingVertical, setAddingVertical] = useState(false);
     const [addingHorizontal, setAddingHorizontal] = useState(false);
     const [newConfigData, setNewConfigData] = useState([
-        { // First row - all columns editable
+        {
             channel_name: '',
             multicast_ip: '',
             port: '',
@@ -64,7 +63,7 @@ function StreamerConfigTable() {
             strm: '',
             card: '',
         },
-        { // Second row - only channel fields editable
+        {
             channel_name: '',
             multicast_ip: '',
             port: '',
@@ -75,7 +74,7 @@ function StreamerConfigTable() {
             strm: '',
             card: '',
         },
-        { // Third row - only channel fields editable
+        {
             channel_name: '',
             multicast_ip: '',
             port: '',
@@ -103,8 +102,7 @@ function StreamerConfigTable() {
     // Fetch data from backend API based on resort filter
     useEffect(() => {
         const fetchStreamers = async () => {
-            if (!resortName) {
-                // Clear data when no resort is selected
+            if (!selectedResort) {
                 setVerticalData([]);
                 setHorizontalData([]);
                 setDataLoaded(false);
@@ -115,8 +113,7 @@ function StreamerConfigTable() {
                 setLoading(true);
                 setError(null);
 
-                // Construct the URL with query parameters
-                const url = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_name=${encodeURIComponent(resortName)}`;
+                const url = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_id=${encodeURIComponent(selectedResort.resort_id)}`;
 
                 const response = await fetch(url, {
                     method: 'GET',
@@ -140,14 +137,31 @@ function StreamerConfigTable() {
         };
 
         fetchStreamers();
-    }, [resortName]);
+    }, [selectedResort]);
 
     // Handle resort filter change
     const handleResortChange = (event, newValue) => {
-        setResortName(newValue || "");
-        setEditingRow(null); // Reset editing when changing resort
+        setSelectedResort(newValue || null);
+        setEditingRow(null);
         setAddingVertical(false);
         setAddingHorizontal(false);
+    };
+
+    // Safe value extraction helper
+    const extractSafeValue = (item) => {
+        if (!item) return '';
+        if (typeof item === 'string' || typeof item === 'number') return item.toString();
+        if (item && typeof item === 'object') {
+            // Handle { key: "value" } structure
+            if (item.key && (typeof item.key === 'string' || typeof item.key === 'number')) {
+                return item.key.toString();
+            }
+            // Handle nested { key: { key: "value" } } structure
+            if (item.key && typeof item.key === 'object' && item.key.key) {
+                return item.key.key.toString();
+            }
+        }
+        return '';
     };
 
     // Updated transformDataToTableRows function
@@ -158,27 +172,28 @@ function StreamerConfigTable() {
         let globalRowIndex = 1;
 
         apiData.forEach((config, configIndex) => {
-            // Get the actual number of channels from the first array (channel_name)
-            // This ensures we only render rows that actually have data
             const numChannels = config.channel_name?.length || 0;
 
-            // Only create rows for channels that actually exist
             for (let i = 0; i < numChannels; i++) {
+                const channelName = extractSafeValue(config.channel_name?.[i]);
+                const multicastIp = extractSafeValue(config.multicast_ip?.[i]);
+                const port = extractSafeValue(config.port?.[i]);
+
                 tableRows.push({
                     id: `${config.streamer_config_id}-${i}-${signalLevel}`,
                     configIndex: configIndex,
                     channelIndex: i,
                     streamer_config_id: config.streamer_config_id,
-                    no: globalRowIndex++, // Use global row index for serial numbers
-                    channel_name: config.channel_name?.[i]?.key || '',
-                    multicast_ip: config.multicast_ip?.[i]?.key || '',
-                    port: config.port?.[i]?.key || '',
-                    stb_no: i === 0 ? config.stb_no || '' : '',
-                    vc_no: i === 0 ? config.vc_no || '' : '',
-                    trfc_ip: i === 0 ? config.trfc_ip || '' : '',
-                    mngmnt_ip: i === 0 ? config.mngmnt_ip || '' : '',
-                    strm: i === 0 ? config.strm || '' : '',
-                    card: i === 0 ? config.card || '' : '',
+                    no: globalRowIndex++,
+                    channel_name: channelName,
+                    multicast_ip: multicastIp,
+                    port: port,
+                    stb_no: i === 0 ? extractSafeValue(config.stb_no) : '',
+                    vc_no: i === 0 ? extractSafeValue(config.vc_no) : '',
+                    trfc_ip: i === 0 ? extractSafeValue(config.trfc_ip) : '',
+                    mngmnt_ip: i === 0 ? extractSafeValue(config.mngmnt_ip) : '',
+                    strm: i === 0 ? extractSafeValue(config.strm) : '',
+                    card: i === 0 ? extractSafeValue(config.card) : '',
                     resort_name: config.resort_name,
                     signal_level: signalLevel,
                     originalConfig: config,
@@ -187,7 +202,6 @@ function StreamerConfigTable() {
                 });
             }
 
-            // Add gap after each complete configuration (except the last one)
             if (configIndex < apiData.length - 1) {
                 tableRows.push({
                     id: `gap-${config.streamer_config_id}-${signalLevel}`,
@@ -206,7 +220,6 @@ function StreamerConfigTable() {
 
         const allRows = [];
 
-        // Add vertical section header
         if (verticalRows.length > 0 || addingVertical) {
             allRows.push({
                 id: 'vertical-header',
@@ -216,7 +229,6 @@ function StreamerConfigTable() {
             allRows.push(...verticalRows);
         }
 
-        // Add horizontal section header
         if (horizontalRows.length > 0 || addingHorizontal) {
             allRows.push({
                 id: 'horizontal-header',
@@ -237,7 +249,6 @@ function StreamerConfigTable() {
             setAddingHorizontal(true);
         }
 
-        // Reset new config data
         setNewConfigData([
             { channel_name: '', multicast_ip: '', port: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
             { channel_name: '', multicast_ip: '', port: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
@@ -261,17 +272,16 @@ function StreamerConfigTable() {
 
             const signalLevel = addingVertical ? 'vertical' : 'horizontal';
 
-            // Prepare channel arrays from the three rows - include empty values too
             const channel_name = newConfigData.map(row => ({ key: row.channel_name || '' }));
             const multicast_ip = newConfigData.map(row => ({ key: row.multicast_ip || '' }));
             const port = newConfigData.map(row => ({ key: row.port || '' }));
 
             const payload = {
-                resort_name: resortName,
+                resort_id: selectedResort.resort_id,
                 channel_name: channel_name,
                 multicast_ip: multicast_ip,
                 port: port,
-                stb_no: newConfigData[0].stb_no, // Only first row has these values
+                stb_no: newConfigData[0].stb_no,
                 vc_no: newConfigData[0].vc_no,
                 trfc_ip: newConfigData[0].trfc_ip,
                 mngmnt_ip: newConfigData[0].mngmnt_ip,
@@ -295,17 +305,13 @@ function StreamerConfigTable() {
 
             await response.json();
 
-            // Refresh data
-            const url = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_name=${encodeURIComponent(resortName)}`;
+            const url = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_id=${encodeURIComponent(selectedResort.resort_id)}`;
             const refreshResponse = await fetch(url);
             const data = await refreshResponse.json();
             setVerticalData(data.vertical || []);
             setHorizontalData(data.horizontal || []);
 
-            // Reset add state
             handleAddCancel();
-
-            // Show success message
             showToast('Streamer configuration added successfully!');
 
         } catch (err) {
@@ -324,10 +330,7 @@ function StreamerConfigTable() {
                 [field]: value
             };
 
-            // Only copy config-wide fields from first row to other rows, don't copy channel-specific fields
             if (rowIndex === 0 && ['stb_no', 'vc_no', 'trfc_ip', 'mngmnt_ip', 'strm', 'card'].includes(field)) {
-                // Update all rows with the same config-wide field values (for data consistency)
-                // But they will not be visible in the UI for rows 2 and 3
                 for (let i = 1; i < updated.length; i++) {
                     updated[i] = {
                         ...updated[i],
@@ -344,26 +347,19 @@ function StreamerConfigTable() {
     const handleEditClick = (row) => {
         setEditingRow(row.id);
 
-        // Determine which data source to use
         const currentData = row.signal_level === 'vertical' ? verticalData : horizontalData;
         const originalConfig = currentData[row.configIndex];
 
-        // Prepare edit form data with all fields
         const formData = {
-            // Channel-specific fields (arrays of objects)
             channel_name: row.channel_name,
             multicast_ip: row.multicast_ip,
             port: row.port,
-
-            // Config-wide fields (only for first channel row)
             stb_no: row.stb_no,
             vc_no: row.vc_no,
             trfc_ip: row.trfc_ip,
             mngmnt_ip: row.mngmnt_ip,
             strm: row.strm,
             card: row.card,
-
-            // Store the complete original config for reference
             originalConfig: originalConfig,
             channelIndex: row.channelIndex,
             signal_level: row.signal_level
@@ -383,7 +379,6 @@ function StreamerConfigTable() {
         try {
             setSaving(true);
 
-            // Determine which data source to use
             const currentData = row.signal_level === 'vertical' ? verticalData : horizontalData;
             const setDataFunction = row.signal_level === 'vertical' ? setVerticalData : setHorizontalData;
             const configToUpdate = currentData[row.configIndex];
@@ -392,10 +387,9 @@ function StreamerConfigTable() {
                 throw new Error('Configuration not found');
             }
 
-            // Create a deep copy of the original config to modify
             const updatedConfig = JSON.parse(JSON.stringify(configToUpdate));
 
-            // Update channel-specific arrays (channel_name, multicast_ip, port)
+            // Update channel-specific arrays
             if (row.channelIndex < updatedConfig.channel_name.length) {
                 updatedConfig.channel_name[row.channelIndex].key = editFormData.channel_name;
             } else {
@@ -414,7 +408,7 @@ function StreamerConfigTable() {
                 updatedConfig.port.push({ key: editFormData.port });
             }
 
-            // Update config-wide fields (only for first channel row)
+            // Update config-wide fields
             if (row.channelIndex === 0) {
                 updatedConfig.stb_no = editFormData.stb_no;
                 updatedConfig.vc_no = editFormData.vc_no;
@@ -424,9 +418,8 @@ function StreamerConfigTable() {
                 updatedConfig.card = editFormData.card;
             }
 
-            // Prepare the complete update payload
             const updatePayload = {
-                resort_name: row.resort_name,
+                resort_id: selectedResort.resort_id,
                 channel_name: updatedConfig.channel_name,
                 multicast_ip: updatedConfig.multicast_ip,
                 port: updatedConfig.port,
@@ -454,7 +447,6 @@ function StreamerConfigTable() {
 
             await response.json();
 
-            // Update local state with the complete updated config
             const updatedData = [...currentData];
             updatedData[row.configIndex] = updatedConfig;
             setDataFunction(updatedData);
@@ -463,7 +455,6 @@ function StreamerConfigTable() {
             setEditFormData({});
             setOriginalData({});
 
-            // Show success message
             showToast('streamer configuration updated successfully!');
 
         } catch (err) {
@@ -480,101 +471,6 @@ function StreamerConfigTable() {
         setOpenDeleteDialog(true);
     };
 
-    // NEW DELETE LOGIC: Generate empty row after deletion
-    // const handleDelete = async () => {
-    //     if (!selectedRowToDelete) return;
-
-    //     try {
-    //         setSaving(true);
-
-    //         const row = selectedRowToDelete;
-    //         const signalLevel = row.signal_level;
-    //         const currentData = signalLevel === 'vertical' ? verticalData : horizontalData;
-    //         const setDataFunction = signalLevel === 'vertical' ? setVerticalData : setHorizontalData;
-
-    //         // If this is the last channel in the configuration, we need to handle it differently
-    //         const configIndex = row.configIndex;
-    //         const configToDeleteFrom = currentData[configIndex];
-    //         const totalChannels = configToDeleteFrom.channel_name?.length || 0;
-
-    //         if (totalChannels <= 1) {
-    //             // If this is the last channel, delete the entire configuration from backend
-    //             const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/deleteStreamerConfig/${row.streamer_config_id}`, {
-    //                 method: 'DELETE',
-    //                 headers: {
-    //                     'Content-Type': 'application/json',
-    //                 },
-    //                 body: JSON.stringify({ channel_index: row.channelIndex })
-    //             });
-
-    //             if (!response.ok) {
-    //                 const errorText = await response.text();
-    //                 throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-    //             }
-
-    //             await response.json();
-
-    //             // Refresh data to get the updated structure
-    //             const refreshUrl = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_name=${encodeURIComponent(resortName)}`;
-    //             const refreshResponse = await fetch(refreshUrl);
-    //             const data = await refreshResponse.json();
-    //             setVerticalData(data.vertical || []);
-    //             setHorizontalData(data.horizontal || []);
-
-    //             showToast('Configuration deleted successfully!');
-    //         } else {
-    //             // If there are multiple channels, delete only the specific channel
-    //             const payload = {
-    //                 channel_index: row.channelIndex
-    //             };
-
-    //             const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/deleteStreamerConfig/${row.streamer_config_id}`, {
-    //                 method: 'DELETE',
-    //                 headers: {
-    //                     'Content-Type': 'application/json',
-    //                 },
-    //                 body: JSON.stringify(payload)
-    //             });
-
-    //             if (!response.ok) {
-    //                 const errorText = await response.text();
-    //                 throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-    //             }
-
-    //             await response.json();
-
-    //             // After successful deletion, create a new empty row in the same configuration
-    //             const updatedData = [...currentData];
-    //             const updatedConfig = JSON.parse(JSON.stringify(configToDeleteFrom));
-
-    //             // Remove the deleted channel
-    //             updatedConfig.channel_name.splice(row.channelIndex, 1);
-    //             updatedConfig.multicast_ip.splice(row.channelIndex, 1);
-    //             updatedConfig.port.splice(row.channelIndex, 1);
-
-    //             // Add empty channel at the end
-    //             updatedConfig.channel_name.push({ key: '' });
-    //             updatedConfig.multicast_ip.push({ key: '' });
-    //             updatedConfig.port.push({ key: '' });
-
-    //             updatedData[configIndex] = updatedConfig;
-    //             setDataFunction(updatedData);
-
-    //             showToast('Channel deleted successfully! Empty row added.');
-    //         }
-
-    //         setOpenDeleteDialog(false);
-    //         setSelectedRowToDelete(null);
-
-    //     } catch (err) {
-    //         console.error('Error deleting data:', err);
-    //         showErrorToast(`Error deleting data: ${err.message}`);
-    //     } finally {
-    //         setSaving(false);
-    //     }
-    // };
-
-    // NEW DELETE LOGIC: Generate empty row after deletion
     const handleDelete = async () => {
         if (!selectedRowToDelete) return;
 
@@ -590,15 +486,13 @@ function StreamerConfigTable() {
             const configToDeleteFrom = currentData[configIndex];
             const totalChannels = configToDeleteFrom.channel_name?.length || 0;
 
-            // NEW CONDITION: Check if there's only one row with actual data
             const countNonEmptyRows = () => {
                 let count = 0;
                 for (let i = 0; i < totalChannels; i++) {
-                    const channelName = configToDeleteFrom.channel_name?.[i]?.key || '';
-                    const multicastIp = configToDeleteFrom.multicast_ip?.[i]?.key || '';
-                    const port = configToDeleteFrom.port?.[i]?.key || '';
+                    const channelName = extractSafeValue(configToDeleteFrom.channel_name?.[i]);
+                    const multicastIp = extractSafeValue(configToDeleteFrom.multicast_ip?.[i]);
+                    const port = extractSafeValue(configToDeleteFrom.port?.[i]);
 
-                    // If any of the main fields has data, consider it a non-empty row
                     if (channelName.trim() !== '' || multicastIp.trim() !== '' || port.trim() !== '') {
                         count++;
                     }
@@ -608,9 +502,8 @@ function StreamerConfigTable() {
 
             const nonEmptyRowCount = countNonEmptyRows();
 
-            // If this is the last non-empty row, delete the entire configuration
-            if (totalChannels <= 1 || nonEmptyRowCount <= 1) {
-                // Delete the entire configuration from backend
+            // If there's only one non-empty row, delete entire configuration
+            if (nonEmptyRowCount <= 1) {
                 const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/deleteStreamerConfig/${row.streamer_config_id}`, {
                     method: 'DELETE',
                     headers: {
@@ -626,8 +519,7 @@ function StreamerConfigTable() {
 
                 await response.json();
 
-                // Refresh data to get the updated structure
-                const refreshUrl = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_name=${encodeURIComponent(resortName)}`;
+                const refreshUrl = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_id=${encodeURIComponent(selectedResort.resort_id)}`;
                 const refreshResponse = await fetch(refreshUrl);
                 const data = await refreshResponse.json();
                 setVerticalData(data.vertical || []);
@@ -635,7 +527,7 @@ function StreamerConfigTable() {
 
                 showToast('Configuration deleted successfully!');
             } else {
-                // If there are multiple non-empty rows, delete only the specific channel
+                // If there are 2 or 3 rows, delete only the selected row and generate empty row
                 const payload = {
                     channel_index: row.channelIndex
                 };
@@ -655,16 +547,15 @@ function StreamerConfigTable() {
 
                 await response.json();
 
-                // After successful deletion, create a new empty row in the same configuration
                 const updatedData = [...currentData];
                 const updatedConfig = JSON.parse(JSON.stringify(configToDeleteFrom));
 
-                // Remove the deleted channel
+                // Remove the selected channel
                 updatedConfig.channel_name.splice(row.channelIndex, 1);
                 updatedConfig.multicast_ip.splice(row.channelIndex, 1);
                 updatedConfig.port.splice(row.channelIndex, 1);
 
-                // Add empty channel at the end
+                // Add empty row to maintain structure (always ensure we have empty rows)
                 updatedConfig.channel_name.push({ key: '' });
                 updatedConfig.multicast_ip.push({ key: '' });
                 updatedConfig.port.push({ key: '' });
@@ -672,7 +563,7 @@ function StreamerConfigTable() {
                 updatedData[configIndex] = updatedConfig;
                 setDataFunction(updatedData);
 
-                showToast('Channel deleted successfully! Empty row added.');
+                showToast('Channel deleted successfully!');
             }
 
             setOpenDeleteDialog(false);
@@ -685,7 +576,6 @@ function StreamerConfigTable() {
             setSaving(false);
         }
     };
-
     const handleInputChange = (field, value) => {
         setEditFormData(prev => ({
             ...prev,
@@ -710,7 +600,6 @@ function StreamerConfigTable() {
 
     // Check if new config data is valid
     const isNewConfigValid = () => {
-        // First row must have all required fields
         const firstRow = newConfigData[0];
         return firstRow.channel_name.trim() !== '' &&
             firstRow.multicast_ip.trim() !== '' &&
@@ -719,9 +608,8 @@ function StreamerConfigTable() {
             firstRow.vc_no.trim() !== '';
     };
 
-    // Updated Export function with single gap between configurations
+    // Export function
     const exportToExcel = () => {
-        // Create a new transformation function for Excel that shows only data rows and single gaps
         const transformDataForExcelWithStructure = (apiData, startNumber = 1) => {
             if (!apiData || apiData.length === 0) return { data: [], nextNumber: startNumber };
 
@@ -732,19 +620,17 @@ function StreamerConfigTable() {
                 const configRows = [];
                 let hasAnyDataInConfig = false;
 
-                // Process all 3 rows for this configuration
                 for (let i = 0; i < 3; i++) {
-                    const channelName = config.channel_name?.[i]?.key || '';
-                    const multicastIp = config.multicast_ip?.[i]?.key || '';
-                    const port = config.port?.[i]?.key || '';
-                    const stbNo = i === 0 ? config.stb_no || '' : '';
-                    const vcNo = i === 0 ? config.vc_no || '' : '';
-                    const trfcIp = i === 0 ? config.trfc_ip || '' : '';
-                    const mngmntIp = i === 0 ? config.mngmnt_ip || '' : '';
-                    const strm = i === 0 ? config.strm || '' : '';
-                    const card = i === 0 ? config.card || '' : '';
+                    const channelName = extractSafeValue(config.channel_name?.[i]);
+                    const multicastIp = extractSafeValue(config.multicast_ip?.[i]);
+                    const port = extractSafeValue(config.port?.[i]);
+                    const stbNo = i === 0 ? extractSafeValue(config.stb_no) : '';
+                    const vcNo = i === 0 ? extractSafeValue(config.vc_no) : '';
+                    const trfcIp = i === 0 ? extractSafeValue(config.trfc_ip) : '';
+                    const mngmntIp = i === 0 ? extractSafeValue(config.mngmnt_ip) : '';
+                    const strm = i === 0 ? extractSafeValue(config.strm) : '';
+                    const card = i === 0 ? extractSafeValue(config.card) : '';
 
-                    // Check if this row has any data
                     const hasData = channelName.trim() !== '' ||
                         multicastIp.trim() !== '' ||
                         port.trim() !== '' ||
@@ -772,25 +658,21 @@ function StreamerConfigTable() {
                             "hasData": true
                         });
                     }
-                    // If no data, don't add empty row to Excel
                 }
 
-                // Only add this configuration if it has at least one row with data
                 if (hasAnyDataInConfig) {
                     excelRows.push(...configRows);
 
-                    // Add single empty row (gap) after each complete configuration (except the last one)
                     if (configIndex < apiData.length - 1) {
-                        // Check if next configuration has data
                         const nextConfigHasData = apiData[configIndex + 1] &&
-                            (apiData[configIndex + 1].channel_name?.some(ch => ch?.key?.trim() !== '') ||
-                                apiData[configIndex + 1].multicast_ip?.some(ip => ip?.key?.trim() !== '') ||
-                                apiData[configIndex + 1].port?.some(p => p?.key?.trim() !== '') ||
-                                apiData[configIndex + 1].stb_no?.trim() !== '' ||
-                                apiData[configIndex + 1].vc_no?.trim() !== '');
+                            (apiData[configIndex + 1].channel_name?.some(ch => extractSafeValue(ch).trim() !== '') ||
+                                apiData[configIndex + 1].multicast_ip?.some(ip => extractSafeValue(ip).trim() !== '') ||
+                                apiData[configIndex + 1].port?.some(p => extractSafeValue(p).trim() !== '') ||
+                                extractSafeValue(apiData[configIndex + 1].stb_no).trim() !== '' ||
+                                extractSafeValue(apiData[configIndex + 1].vc_no).trim() !== '');
 
                         if (nextConfigHasData) {
-                            excelRows.push({}); // Single empty object creates one gap row
+                            excelRows.push({});
                         }
                     }
                 }
@@ -799,7 +681,6 @@ function StreamerConfigTable() {
             return { data: excelRows, nextNumber: currentNumber };
         };
 
-        // Transform data with proper numbering and single gaps
         const verticalResult = transformDataForExcelWithStructure(verticalData, 1);
         const horizontalResult = transformDataForExcelWithStructure(horizontalData, verticalResult.nextNumber);
 
@@ -808,10 +689,7 @@ function StreamerConfigTable() {
             return;
         }
 
-        // Create workbook and worksheet
         const wb = XLSX.utils.book_new();
-
-        // Define column headers
         const columnHeaders = [
             "NO",
             "CHANNEL NAME",
@@ -825,42 +703,30 @@ function StreamerConfigTable() {
             "CARD"
         ];
 
-        // Start building the data array
         const allData = [];
 
-        // Add VERTICAL section
         if (verticalResult.data.length > 0) {
-            // Add VERTICAL header
             allData.push(["VERTICAL"]);
-            // Add column headers
             allData.push(columnHeaders);
-            // Add vertical data with single gaps
             verticalResult.data.forEach((row) => {
-                // Check if this is a gap row (empty object)
                 if (Object.keys(row).length === 0) {
-                    allData.push([]); // Single empty array for gap
+                    allData.push([]);
                 } else {
                     const rowData = columnHeaders.map(header => row[header] || '');
                     allData.push(rowData);
                 }
             });
-            // Add empty row between sections if horizontal data exists
             if (horizontalResult.data.length > 0) {
                 allData.push([]);
             }
         }
 
-        // Add HORIZONTAL section
         if (horizontalResult.data.length > 0) {
-            // Add HORIZONTAL header
             allData.push(["HORIZONTAL"]);
-            // Add column headers
             allData.push(columnHeaders);
-            // Add horizontal data with single gaps
             horizontalResult.data.forEach((row) => {
-                // Check if this is a gap row (empty object)
                 if (Object.keys(row).length === 0) {
-                    allData.push([]); // Single empty array for gap
+                    allData.push([]);
                 } else {
                     const rowData = columnHeaders.map(header => row[header] || '');
                     allData.push(rowData);
@@ -868,13 +734,9 @@ function StreamerConfigTable() {
             });
         }
 
-        // Create worksheet from array of arrays
         const ws = XLSX.utils.aoa_to_sheet(allData);
-
-        // Get the range of the worksheet
         const range = XLSX.utils.decode_range(ws['!ref']);
 
-        // Apply styling
         for (let R = range.s.r; R <= range.e.r; ++R) {
             for (let C = range.s.c; C <= range.e.c; ++C) {
                 const address = XLSX.utils.encode_cell({ r: R, c: C });
@@ -888,7 +750,6 @@ function StreamerConfigTable() {
                     (horizontalResult.data.length > 0 && R === (verticalResult.data.length > 0 ? allData.findIndex(row => row[0] === "HORIZONTAL") : 1));
 
                 if (isSectionHeader && C === 0 && cellValue === "VERTICAL") {
-                    // Style for VERTICAL header
                     ws[address].s = {
                         font: {
                             bold: true,
@@ -903,7 +764,6 @@ function StreamerConfigTable() {
                         }
                     };
                 } else if (isSectionHeader && C === 0 && cellValue === "HORIZONTAL") {
-                    // Style for HORIZONTAL header
                     ws[address].s = {
                         font: {
                             bold: true,
@@ -918,7 +778,6 @@ function StreamerConfigTable() {
                         }
                     };
                 } else if (isColumnHeader && cellValue) {
-                    // Style for column headers
                     ws[address].s = {
                         font: {
                             bold: true,
@@ -939,7 +798,6 @@ function StreamerConfigTable() {
                         }
                     };
                 } else if (R > 1 && cellValue !== undefined && cellValue !== '') {
-                    // Style for data rows (only if they have content)
                     ws[address].s = {
                         font: {
                             sz: 11
@@ -959,7 +817,6 @@ function StreamerConfigTable() {
             }
         }
 
-        // Set column widths for better readability
         const colWidths = [
             { wch: 8 },   // NO
             { wch: 30 },  // CHANNEL NAME
@@ -974,11 +831,8 @@ function StreamerConfigTable() {
         ];
         ws['!cols'] = colWidths;
 
-        // Add worksheet to workbook
         XLSX.utils.book_append_sheet(wb, ws, "Streamer Configuration");
-
-        // Generate Excel file and trigger download
-        const filename = resortName ? `streamer_config_${resortName.replace(/\s+/g, '_')}.xlsx` : 'streamer_config_all_data.xlsx';
+        const filename = selectedResort ? `streamer_config_${selectedResort.resort_name.replace(/\s+/g, '_')}.xlsx` : 'streamer_config_all_data.xlsx';
         XLSX.writeFile(wb, filename);
     };
 
@@ -1007,7 +861,6 @@ function StreamerConfigTable() {
                     {rowIndex === 0 ? 'NEW' : ''}
                 </TableCell>
 
-                {/* CHANNEL NAME - Always editable for all 3 rows */}
                 <TableCell>
                     <TextField
                         value={rowData.channel_name}
@@ -1016,11 +869,10 @@ function StreamerConfigTable() {
                         fullWidth
                         variant="outlined"
                         placeholder="Enter channel name"
-                        sx={{ minWidth: '120px' }} // Add this
+                        sx={{ minWidth: '120px' }}
                     />
                 </TableCell>
 
-                {/* MULTICAST IP - Always editable for all 3 rows */}
                 <TableCell>
                     <TextField
                         value={rowData.multicast_ip}
@@ -1032,7 +884,6 @@ function StreamerConfigTable() {
                     />
                 </TableCell>
 
-                {/* PORT - Always editable for all 3 rows */}
                 <TableCell align="center">
                     <TextField
                         value={rowData.port}
@@ -1041,11 +892,10 @@ function StreamerConfigTable() {
                         fullWidth
                         variant="outlined"
                         placeholder="Enter port"
-                        sx={{ minWidth: '100px' }} // Add this
+                        sx={{ minWidth: '100px' }}
                     />
                 </TableCell>
 
-                {/* STB NO - Only editable and visible in first row */}
                 <TableCell>
                     {rowIndex === 0 ? (
                         <TextField
@@ -1063,13 +913,10 @@ function StreamerConfigTable() {
                             alignItems: 'center',
                             color: '#999',
                             fontStyle: 'italic'
-                        }}>
-                            {/* Empty for rows 2 and 3 */}
-                        </Box>
+                        }} />
                     )}
                 </TableCell>
 
-                {/* VC NO - Only editable and visible in first row */}
                 <TableCell>
                     {rowIndex === 0 ? (
                         <TextField
@@ -1079,8 +926,7 @@ function StreamerConfigTable() {
                             fullWidth
                             variant="outlined"
                             placeholder="Enter VC number"
-                            sx={{ minWidth: '155px' }} // Add this
-
+                            sx={{ minWidth: '155px' }}
                         />
                     ) : (
                         <Box sx={{
@@ -1089,13 +935,10 @@ function StreamerConfigTable() {
                             alignItems: 'center',
                             color: '#999',
                             fontStyle: 'italic'
-                        }}>
-                            {/* Empty for rows 2 and 3 */}
-                        </Box>
+                        }} />
                     )}
                 </TableCell>
 
-                {/* TRFC IP - Only editable and visible in first row */}
                 <TableCell>
                     {rowIndex === 0 ? (
                         <TextField
@@ -1113,13 +956,10 @@ function StreamerConfigTable() {
                             alignItems: 'center',
                             color: '#999',
                             fontStyle: 'italic'
-                        }}>
-                            {/* Empty for rows 2 and 3 */}
-                        </Box>
+                        }} />
                     )}
                 </TableCell>
 
-                {/* MNGMNT IP - Only editable and visible in first row */}
                 <TableCell>
                     {rowIndex === 0 ? (
                         <TextField
@@ -1129,7 +969,7 @@ function StreamerConfigTable() {
                             fullWidth
                             variant="outlined"
                             placeholder="Enter management IP"
-                            sx={{ minWidth: '190px' }} // Add this
+                            sx={{ minWidth: '190px' }}
                         />
                     ) : (
                         <Box sx={{
@@ -1138,13 +978,10 @@ function StreamerConfigTable() {
                             alignItems: 'center',
                             color: '#999',
                             fontStyle: 'italic'
-                        }}>
-                            {/* Empty for rows 2 and 3 */}
-                        </Box>
+                        }} />
                     )}
                 </TableCell>
 
-                {/* STRM - Only editable and visible in first row */}
                 <TableCell align="center">
                     {rowIndex === 0 ? (
                         <TextField
@@ -1154,7 +991,7 @@ function StreamerConfigTable() {
                             fullWidth
                             variant="outlined"
                             placeholder="Enter STRM"
-                            sx={{ minWidth: '120px' }} // Add this
+                            sx={{ minWidth: '120px' }}
                         />
                     ) : (
                         <Box sx={{
@@ -1164,13 +1001,10 @@ function StreamerConfigTable() {
                             justifyContent: 'center',
                             color: '#999',
                             fontStyle: 'italic'
-                        }}>
-                            {/* Empty for rows 2 and 3 */}
-                        </Box>
+                        }} />
                     )}
                 </TableCell>
 
-                {/* CARD - Only editable and visible in first row */}
                 <TableCell align="center">
                     {rowIndex === 0 ? (
                         <TextField
@@ -1180,7 +1014,7 @@ function StreamerConfigTable() {
                             fullWidth
                             variant="outlined"
                             placeholder="Enter CARD"
-                            sx={{ minWidth: '120px' }} // Add this
+                            sx={{ minWidth: '120px' }}
                         />
                     ) : (
                         <Box sx={{
@@ -1190,13 +1024,10 @@ function StreamerConfigTable() {
                             justifyContent: 'center',
                             color: '#999',
                             fontStyle: 'italic'
-                        }}>
-                            {/* Empty for rows 2 and 3 */}
-                        </Box>
+                        }} />
                     )}
                 </TableCell>
 
-                {/* ACTIONS - Only show in first row */}
                 <TableCell
                     align="center"
                     sx={{
@@ -1212,24 +1043,28 @@ function StreamerConfigTable() {
                     {rowIndex === 0 && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                             <Tooltip title="Save">
-                                <IconButton
-                                    color="primary"
-                                    size="small"
-                                    onClick={handleAddSave}
-                                    disabled={saving || !isNewConfigValid()}
-                                >
-                                    {saving ? <CircularProgress size={20} /> : <SaveIcon />}
-                                </IconButton>
+                                <span>
+                                    <IconButton
+                                        color="primary"
+                                        size="small"
+                                        onClick={handleAddSave}
+                                        disabled={saving || !isNewConfigValid()}
+                                    >
+                                        {saving ? <CircularProgress size={20} /> : <SaveIcon />}
+                                    </IconButton>
+                                </span>
                             </Tooltip>
                             <Tooltip title="Cancel">
-                                <IconButton
-                                    color="secondary"
-                                    size="small"
-                                    onClick={handleAddCancel}
-                                    disabled={saving}
-                                >
-                                    <CancelIcon />
-                                </IconButton>
+                                <span>
+                                    <IconButton
+                                        color="secondary"
+                                        size="small"
+                                        onClick={handleAddCancel}
+                                        disabled={saving}
+                                    >
+                                        <CancelIcon />
+                                    </IconButton>
+                                </span>
                             </Tooltip>
                         </Box>
                     )}
@@ -1243,13 +1078,14 @@ function StreamerConfigTable() {
             {/* Filter Section */}
             <Box sx={{ paddingLeft: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
-                    {/* Resort Filter */}
-                    <Box >
+                    <Box>
                         <FormLabel sx={{ fontWeight: 'bold', mb: 1, display: 'block' }}>Resort Name</FormLabel>
                         <Autocomplete
-                            options={resorts.map(r => r.resort_name)}
-                            value={resortName}
+                            options={resorts}
+                            value={selectedResort}
                             onChange={handleResortChange}
+                            getOptionLabel={(option) => option.resort_name}
+                            isOptionEqualToValue={(option, value) => option.resort_id === value.resort_id}
                             renderInput={(params) => (
                                 <TextField
                                     {...params}
@@ -1262,7 +1098,6 @@ function StreamerConfigTable() {
                         />
                     </Box>
 
-                    {/* Download Button */}
                     <Box sx={{ alignSelf: 'flex-end' }}>
                         <Button
                             variant="contained"
@@ -1286,16 +1121,14 @@ function StreamerConfigTable() {
                     </Box>
                 </Box>
 
-                {/* Show current filter status */}
-                {resortName && !loading && dataLoaded && (
+                {selectedResort && !loading && dataLoaded && (
                     <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
-                        Showing data for resort: <strong>{resortName}</strong>
+                        Showing data for resort: <strong>{selectedResort.resort_name}</strong>
                     </Typography>
                 )}
             </Box>
 
-            {/* Rest of the component */}
-            {!resortName && !loading && (
+            {!selectedResort && !loading && (
                 <Alert severity="info" sx={{ m: 2 }}>
                     Please select or enter a resort name to load streamer configuration data.
                 </Alert>
@@ -1304,25 +1137,24 @@ function StreamerConfigTable() {
             {loading && (
                 <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
                     <CircularProgress />
-                    <Box ml={2}>Loading streamer data for {resortName}...</Box>
+                    <Box ml={2}>Loading streamer data for {selectedResort?.resort_name}...</Box>
                 </Box>
             )}
 
             {error && (
                 <Alert severity="error" sx={{ m: 2 }}>
-                    Error loading data for {resortName}: {error}
+                    Error loading data for {selectedResort?.resort_name}: {error}
                 </Alert>
             )}
 
-            {dataLoaded && !loading && resortName && (
+            {dataLoaded && !loading && selectedResort && (
                 <>
                     {(allTableRows.length === 0 && !addingVertical && !addingHorizontal) ? (
                         <Alert severity="info" sx={{ m: 2 }}>
-                            No streamer data available for resort: {resortName}.
+                            No streamer data available for resort: {selectedResort.resort_name}.
                         </Alert>
                     ) : null}
 
-                    {/* Always show the table when resort is selected and data is loaded */}
                     <Box>
                         <TableContainer
                             component={Paper}
@@ -1366,61 +1198,61 @@ function StreamerConfigTable() {
                                         }
                                     }}>
                                         <TableCell align="center" sx={{
-                                            width: '80px', // Increased from 60px
+                                            width: '80px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white',
                                         }}>NO</TableCell>
 
                                         <TableCell sx={{
-                                            minWidth: '200px', // Increased from 120px
+                                            minWidth: '200px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white'
                                         }}>CHANNEL NAME</TableCell>
 
                                         <TableCell sx={{
-                                            minWidth: '155px', // Increased from 120px
+                                            minWidth: '155px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white'
                                         }}>MULTICAST IP</TableCell>
 
                                         <TableCell align="center" sx={{
-                                            width: '130px', // Increased from 80px
+                                            width: '130px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white'
                                         }}>PORT</TableCell>
 
                                         <TableCell sx={{
-                                            minWidth: '180px', // Increased from 150px
+                                            minWidth: '180px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white'
                                         }}>STB NO</TableCell>
 
                                         <TableCell sx={{
-                                            minWidth: '120px', // Increased from 100px
+                                            minWidth: '120px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white'
                                         }}>VC NO</TableCell>
 
                                         <TableCell sx={{
-                                            minWidth: '150px', // Increased from 120px
+                                            minWidth: '150px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white'
                                         }}>TRFC IP</TableCell>
 
                                         <TableCell sx={{
-                                            minWidth: '150px', // Increased from 120px
+                                            minWidth: '150px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white'
                                         }}>MNGMNT IP</TableCell>
 
                                         <TableCell align="center" sx={{
-                                            width: '80px', // Increased from 60px
+                                            width: '80px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white'
                                         }}>STRM</TableCell>
 
                                         <TableCell align="center" sx={{
-                                            width: '80px', // Increased from 60px
+                                            width: '80px',
                                             backgroundColor: 'rgb(86, 159, 223) !important',
                                             color: 'white'
                                         }}>CARD</TableCell>
@@ -1429,7 +1261,7 @@ function StreamerConfigTable() {
                                             <TableCell
                                                 align="center"
                                                 sx={{
-                                                    width: '140px', // Increased from 120px
+                                                    width: '140px',
                                                     position: 'sticky',
                                                     right: 0,
                                                     backgroundColor: 'rgb(86, 159, 223) !important',
@@ -1446,9 +1278,8 @@ function StreamerConfigTable() {
                                 </TableHead>
 
                                 <TableBody>
-                                    {/* ALWAYS RENDER VERTICAL SECTION */}
+                                    {/* VERTICAL SECTION */}
                                     <>
-                                        {/* Vertical Header - ALWAYS SHOW */}
                                         <TableRow>
                                             <TableCell
                                                 colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
@@ -1464,10 +1295,8 @@ function StreamerConfigTable() {
                                             </TableCell>
                                         </TableRow>
 
-                                        {/* Vertical Data Rows - Show if data exists */}
                                         {verticalData.length > 0 && transformDataToTableRows(verticalData, 'vertical').map((row, index, array) => (
                                             <React.Fragment key={row.id}>
-                                                {/* Render gap row if this is a gap */}
                                                 {row.isGap ? (
                                                     <TableRow>
                                                         <TableCell
@@ -1480,7 +1309,6 @@ function StreamerConfigTable() {
                                                         />
                                                     </TableRow>
                                                 ) : (
-                                                    /* Data row */
                                                     <TableRow
                                                         sx={{
                                                             '&:hover': {
@@ -1507,7 +1335,7 @@ function StreamerConfigTable() {
                                                                     size="small"
                                                                     fullWidth
                                                                     variant="outlined"
-                                                                    sx={{ minWidth: '120px' }} // Add this
+                                                                    sx={{ minWidth: '120px' }}
                                                                 />
                                                             ) : (
                                                                 row.channel_name
@@ -1648,24 +1476,28 @@ function StreamerConfigTable() {
                                                                 {editingRow === row.id ? (
                                                                     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                                                                         <Tooltip title="Save">
-                                                                            <IconButton
-                                                                                color="primary"
-                                                                                size="small"
-                                                                                onClick={() => handleSaveClick(row)}
-                                                                                disabled={saving || !hasChanges()}
-                                                                            >
-                                                                                {saving ? <CircularProgress size={20} /> : <SaveIcon />}
-                                                                            </IconButton>
+                                                                            <span>
+                                                                                <IconButton
+                                                                                    color="primary"
+                                                                                    size="small"
+                                                                                    onClick={() => handleSaveClick(row)}
+                                                                                    disabled={saving || !hasChanges()}
+                                                                                >
+                                                                                    {saving ? <CircularProgress size={20} /> : <SaveIcon />}
+                                                                                </IconButton>
+                                                                            </span>
                                                                         </Tooltip>
                                                                         <Tooltip title="Cancel">
-                                                                            <IconButton
-                                                                                color="secondary"
-                                                                                size="small"
-                                                                                onClick={handleCancelClick}
-                                                                                disabled={saving}
-                                                                            >
-                                                                                <CancelIcon />
-                                                                            </IconButton>
+                                                                            <span>
+                                                                                <IconButton
+                                                                                    color="secondary"
+                                                                                    size="small"
+                                                                                    onClick={handleCancelClick}
+                                                                                    disabled={saving}
+                                                                                >
+                                                                                    <CancelIcon />
+                                                                                </IconButton>
+                                                                            </span>
                                                                         </Tooltip>
                                                                     </Box>
                                                                 ) : (
@@ -1684,6 +1516,7 @@ function StreamerConfigTable() {
                                                                                 color="error"
                                                                                 size="small"
                                                                                 onClick={() => confirmDelete(row)}
+                                                                                disabled={row.isEmptyRow || (!row.channel_name && !row.multicast_ip && !row.port)}
                                                                             >
                                                                                 <DeleteIcon />
                                                                             </IconButton>
@@ -1697,7 +1530,6 @@ function StreamerConfigTable() {
                                             </React.Fragment>
                                         ))}
 
-                                        {/* Show message if no vertical data exists */}
                                         {verticalData.length === 0 && !addingVertical && (
                                             <TableRow>
                                                 <TableCell
@@ -1714,7 +1546,6 @@ function StreamerConfigTable() {
                                             </TableRow>
                                         )}
 
-                                        {/* Add gap before add form if there are existing rows */}
                                         {verticalData.length > 0 && addingVertical && (
                                             <TableRow>
                                                 <TableCell
@@ -1728,10 +1559,8 @@ function StreamerConfigTable() {
                                             </TableRow>
                                         )}
 
-                                        {/* Vertical Add Rows */}
                                         {renderAddRows('vertical')}
 
-                                        {/* Vertical Add Button - ALWAYS VISIBLE */}
                                         {canAccess("streamerConfig", "edit") && (
                                             <TableRow>
                                                 <TableCell
@@ -1768,9 +1597,8 @@ function StreamerConfigTable() {
                                         )}
                                     </>
 
-                                    {/* ALWAYS RENDER HORIZONTAL SECTION */}
+                                    {/* HORIZONTAL SECTION */}
                                     <>
-                                        {/* Horizontal Header - ALWAYS SHOW */}
                                         <TableRow>
                                             <TableCell
                                                 colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
@@ -1786,10 +1614,8 @@ function StreamerConfigTable() {
                                             </TableCell>
                                         </TableRow>
 
-                                        {/* Horizontal Data Rows - Show if data exists */}
                                         {horizontalData.length > 0 && transformDataToTableRows(horizontalData, 'horizontal').map((row, index, array) => (
                                             <React.Fragment key={row.id}>
-                                                {/* Render gap row if this is a gap */}
                                                 {row.isGap ? (
                                                     <TableRow>
                                                         <TableCell
@@ -1802,7 +1628,6 @@ function StreamerConfigTable() {
                                                         />
                                                     </TableRow>
                                                 ) : (
-                                                    /* Data row */
                                                     <TableRow
                                                         sx={{
                                                             '&:hover': {
@@ -1969,24 +1794,28 @@ function StreamerConfigTable() {
                                                                 {editingRow === row.id ? (
                                                                     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                                                                         <Tooltip title="Save">
-                                                                            <IconButton
-                                                                                color="primary"
-                                                                                size="small"
-                                                                                onClick={() => handleSaveClick(row)}
-                                                                                disabled={saving || !hasChanges()}
-                                                                            >
-                                                                                {saving ? <CircularProgress size={20} /> : <SaveIcon />}
-                                                                            </IconButton>
+                                                                            <span>
+                                                                                <IconButton
+                                                                                    color="primary"
+                                                                                    size="small"
+                                                                                    onClick={() => handleSaveClick(row)}
+                                                                                    disabled={saving || !hasChanges()}
+                                                                                >
+                                                                                    {saving ? <CircularProgress size={20} /> : <SaveIcon />}
+                                                                                </IconButton>
+                                                                            </span>
                                                                         </Tooltip>
                                                                         <Tooltip title="Cancel">
-                                                                            <IconButton
-                                                                                color="secondary"
-                                                                                size="small"
-                                                                                onClick={handleCancelClick}
-                                                                                disabled={saving}
-                                                                            >
-                                                                                <CancelIcon />
-                                                                            </IconButton>
+                                                                            <span>
+                                                                                <IconButton
+                                                                                    color="secondary"
+                                                                                    size="small"
+                                                                                    onClick={handleCancelClick}
+                                                                                    disabled={saving}
+                                                                                >
+                                                                                    <CancelIcon />
+                                                                                </IconButton>
+                                                                            </span>
                                                                         </Tooltip>
                                                                     </Box>
                                                                 ) : (
@@ -2018,7 +1847,6 @@ function StreamerConfigTable() {
                                             </React.Fragment>
                                         ))}
 
-                                        {/* Show message if no horizontal data exists */}
                                         {horizontalData.length === 0 && !addingHorizontal && (
                                             <TableRow>
                                                 <TableCell
@@ -2035,7 +1863,6 @@ function StreamerConfigTable() {
                                             </TableRow>
                                         )}
 
-                                        {/* Add gap before add form if there are existing rows */}
                                         {horizontalData.length > 0 && addingHorizontal && (
                                             <TableRow>
                                                 <TableCell
@@ -2049,10 +1876,8 @@ function StreamerConfigTable() {
                                             </TableRow>
                                         )}
 
-                                        {/* Horizontal Add Rows */}
                                         {renderAddRows('horizontal')}
 
-                                        {/* Horizontal Add Button - ALWAYS VISIBLE */}
                                         {canAccess("streamerConfig", "edit") && (
                                             <TableRow>
                                                 <TableCell
@@ -2110,7 +1935,7 @@ function StreamerConfigTable() {
                             if (totalChannels <= 1) {
                                 return "This is the last channel in this configuration. The entire configuration will be deleted.";
                             } else {
-                                return "This channel will be deleted and an empty row will be added to the configuration.";
+                                return "This channel will be deleted";
                             }
                         })()}
                     </Typography>
@@ -2123,15 +1948,19 @@ function StreamerConfigTable() {
                     >
                         Cancel
                     </Button>
-                    <Button
-                        onClick={handleDelete}
-                        color="error"
-                        variant="contained"
-                        disabled={saving}
-                        startIcon={saving ? <CircularProgress size={16} /> : <DeleteIcon />}
-                    >
-                        {saving ? 'Deleting...' : 'Delete'}
-                    </Button>
+                    <Tooltip title="Delete">
+                        <span>
+                            <Button
+                                onClick={handleDelete}
+                                color="error"
+                                variant="contained"
+                                disabled={saving}
+                                startIcon={saving ? <CircularProgress size={16} /> : <DeleteIcon />}
+                            >
+                                {saving ? 'Deleting...' : 'Delete'}
+                            </Button>
+                        </span>
+                    </Tooltip>
                 </DialogActions>
             </Dialog>
         </div>

@@ -32,7 +32,7 @@ const Sidebar = () => {
       <div className="menubar" style={{ flexGrow: 1 }}>
         <div className="menulist">
           <img src={medianetLogo} alt="Medianet Logo" className="mdn-logo" />
-          <h2 style={{ textAlign: "center", marginBottom: "15px", marginTop: "7px" }}>Islands Connection</h2>
+          <h2 style={{ textAlign: "center", marginBottom: "20px", marginTop: "6px" }}>Islands Connection</h2>
         </div>
 
         <div className="dashboardbutton">

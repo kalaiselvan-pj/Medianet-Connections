@@ -229,7 +229,7 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
 
                                             {/* Island */}
                                             <TextField
-                                                label="Island"
+                                                label="Atoll"
                                                 value={viewResort.island || ""}
                                                 fullWidth
                                                 size="small"
@@ -692,7 +692,7 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                     variant="outlined"
                     sx={{ minWidth: '100px' }}
                 >
-                    Cancel
+                    Close
                 </Button>
 
             </DialogActions>

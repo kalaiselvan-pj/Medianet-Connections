@@ -213,15 +213,6 @@ const deleteResortIncident = async (req, res) => {
   }
 };
 
-export const getStreamerResortNames = async (req, res) => {
-  try {
-    const resortNames = await statisticsService.getStreamerResortNames();
-    res.json(resortNames);
-  } catch (err) {
-    console.error("Error in getAllResortNames:", err);
-    res.status(500).json({ error: err.message });
-  }
-};
 
 export const addStreamerConfig = async (req, res) => {
   try {
@@ -233,51 +224,6 @@ export const addStreamerConfig = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-
-// export const deleteStreamerConfig = async (req, res) => {
-//   try {
-//     const { streamer_config_id } = req.params;
-//     const { channel_index } = req.body;
-
-//     if (!streamer_config_id) {
-//       return res.status(400).json({ message: 'Missing streamer_config_id parameter' });
-//     }
-
-//     // Keep UUID as string, do not parseInt
-//     const configId = streamer_config_id;
-
-//     if (channel_index !== undefined && channel_index !== null) {
-//       const channelIndex = parseInt(channel_index);
-//       if (isNaN(channelIndex) || channelIndex < 0) {
-//         return res.status(400).json({ message: 'Invalid channel_index format. Must be a non-negative number.' });
-//       }
-
-//       const success = await statisticsService.deleteChannelFromConfig(configId, channelIndex);
-
-//       if (!success) {
-//         return res.status(404).json({ message: 'Streamer config not found or channel index invalid' });
-//       }
-
-//       return res.status(200).json({ message: 'Channel deleted successfully' });
-//     } else {
-//       // Delete entire configuration
-//       const success = await statisticsService.deleteStreamerConfig(configId);
-
-//       if (!success) {
-//         return res.status(404).json({ message: 'Streamer config not found' });
-//       }
-
-//       return res.status(200).json({ message: 'Streamer config deleted successfully' });
-//     }
-//   } catch (error) {
-//     console.error('Error in deleteStreamerConfig:', error);
-//     res.status(500).json({
-//       message: 'Error processing delete request',
-//       error: error.message,
-//     });
-//   }
-// };
 
 export const deleteStreamerConfig = async (req, res) => {
   try {
@@ -332,15 +278,16 @@ export const deleteStreamerConfig = async (req, res) => {
 export const getAllStreamers = async (req, res) => {
   try {
     // FIX: Get resort_name from req.query (query parameters in the URL)
-    const { resort_name } = req.query;
+    const { resort_id } = req.query;
 
 
-    if (!resort_name) {
+    if (!resort_id) {
       // Optional: Return a 400 Bad Request if the required parameter is missing
-      return res.status(400).json({ error: "Missing resort_name query parameter" });
+      return res.status(400).json({ error: "Missing resort_id query parameter" });
     }
 
-    const { vertical, horizontal } = await statisticsService.getAllStreamers(resort_name);
+    const { vertical, horizontal } = await statisticsService.getAllStreamers(resort_id);
+
     res.json({ vertical, horizontal });
   } catch (err) {
     console.error("Error in getStreamers controller:", err);
@@ -428,10 +375,8 @@ export default {
   getAllIncidentReports,
   updateIncidentReport,
   deleteResortIncident,
-  getStreamerResortNames,
   addStreamerConfig,
   getAllStreamers,
   updateStreamer,
   deleteStreamerConfig
 }
-
