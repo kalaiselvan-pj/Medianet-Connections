@@ -21,6 +21,8 @@ import {
   TableCell,
   TableBody,
   Tooltip,
+  Fade,
+  InputAdornment,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
@@ -28,11 +30,12 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ImageIcon from "@mui/icons-material/Image";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { showToast } from "../common/toaster";
-import { format, parseISO } from 'date-fns';
-
 
 const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort }) => {
   const isEditMode = !!selectedResort;
@@ -45,19 +48,28 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     staff_area_tv: "",
     guest_area_tv: "",
     distribution_model: "",
+    streamer_types: "", // New field for streamer type
     tvro_type: "",
     tvro_dish: "",
     horizontal_signal: "",
     vertical_signal: "",
     horizontal_link_margin: "",
     vertical_link_margin: "",
+    dish_type: "",
+    dish_brand: "",
+    // IP information fields
+    transmodelator_ip: "",
+    middleware_ip: "",
+    username: "",
+    password: "",
   });
 
   const [contacts, setContacts] = useState([]);
   const [editingIndex, setEditingIndex] = useState(null);
   const [adding, setAdding] = useState(false);
-  const [newContact, setNewContact] = useState({ name: "", email: "", phone: "" });
+  const [newContact, setNewContact] = useState({ name: "", email: "", phone: "", designation: "" });
   const [signalTimestamp, setSignalTimestamp] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // For password visibility
 
   // File upload states
   const [surveyFormFile, setSurveyFormFile] = useState(null);
@@ -75,7 +87,6 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
   const [filesChanged, setFilesChanged] = useState({
     survey_form: false,
     service_acceptance_form: false,
-    signal_image: false,
     dish_antena_image: false
   });
 
@@ -83,9 +94,17 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
   const [removedFiles, setRemovedFiles] = useState({
     survey_form: false,
     service_acceptance_form: false,
-    signal_image: false,
     dish_antena_image: false
   });
+
+  // Check if category is Ooredoo
+  const isOoredoo = formData.category === "Ooredoo";
+
+  // Check if middleware IP is entered to show username/password
+  const showCredentials = formData.middleware_ip && formData.middleware_ip.trim() !== "";
+
+  // Check if distribution model is Medianet Streamer to show streamer type
+  const showStreamerType = formData.distribution_model === "medianet_streamer";
 
   // Reset form when modal opens/closes or when switching between add/edit
   useEffect(() => {
@@ -100,51 +119,39 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
           staff_area_tv: selectedResort.staff_area_tv || "",
           guest_area_tv: selectedResort.guest_area_tv || "",
           distribution_model: selectedResort.distribution_model || "",
+          streamer_types: selectedResort.streamer_types || "", // New field
           tvro_type: selectedResort.tvro_type || "",
           tvro_dish: selectedResort.tvro_dish || "",
           horizontal_signal: selectedResort.horizontal_signal || "",
           vertical_signal: selectedResort.vertical_signal || "",
           horizontal_link_margin: selectedResort.horizontal_link_margin || "",
           vertical_link_margin: selectedResort.vertical_link_margin || "",
+          dish_type: selectedResort.dish_type || "",
+          dish_brand: selectedResort.dish_brand || "",
+          // IP fields
+          transmodelator_ip: selectedResort.transmodelator_ip || "",
+          middleware_ip: selectedResort.middleware_ip || "",
+          username: selectedResort.username || "",
+          password: selectedResort.password || "",
         });
         setContacts(selectedResort.contact_details || []);
-
-        // Handle timestamp with date-fns
-        const formatTimestamp = (timestamp) => {
-          if (!timestamp) return "";
-
-          try {
-            // Parse the timestamp (handles both UTC and local times)
-            const date = typeof timestamp === 'string' ? parseISO(timestamp) : new Date(timestamp);
-
-            // Format as YYYY-MM-DD HH:mm:ss in local time
-            return format(date, 'yyyy-MM-dd HH:mm:ss');
-          } catch (error) {
-            console.error('Error formatting timestamp:', error);
-            return timestamp || ""; // Return original if error
-          }
-        };
-
-        setSignalTimestamp(formatTimestamp(selectedResort.signal_level_timestamp));
+        setSignalTimestamp(selectedResort.signal_level_timestamp || "");
 
         // Set URLs for existing files
         setSurveyFormUrl(bufferToUrl(selectedResort.survey_form, 'application/pdf'));
         setServiceAcceptanceUrl(bufferToUrl(selectedResort.service_acceptance_form, 'application/pdf'));
         setDishAntennaImageUrl(bufferToUrl(selectedResort.dish_antena_image, 'image/jpeg'));
-        setSignalImageUrl(bufferToUrl(selectedResort.signal_image, 'image/jpeg'));
 
         // Reset file change tracking
         setFilesChanged({
           survey_form: false,
           service_acceptance_form: false,
-          signal_image: false,
           dish_antena_image: false
         });
 
         setRemovedFiles({
           survey_form: false,
           service_acceptance_form: false,
-          signal_image: false,
           dish_antena_image: false
         });
 
@@ -163,12 +170,20 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
           staff_area_tv: "",
           guest_area_tv: "",
           distribution_model: "",
+          streamer_types: "", // New field
           tvro_type: "",
           tvro_dish: "",
           horizontal_signal: "",
           vertical_signal: "",
           horizontal_link_margin: "",
           vertical_link_margin: "",
+          dish_type: "",
+          dish_brand: "",
+          // IP fields
+          transmodelator_ip: "",
+          middleware_ip: "",
+          username: "",
+          password: "",
         });
         setContacts([]);
         setSignalTimestamp("");
@@ -183,13 +198,11 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
         setFilesChanged({
           survey_form: false,
           service_acceptance_form: false,
-          signal_image: false,
           dish_antena_image: false
         });
         setRemovedFiles({
           survey_form: false,
           service_acceptance_form: false,
-          signal_image: false,
           dish_antena_image: false
         });
       }
@@ -199,9 +212,52 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Update timestamp for signal-related fields
     if (["horizontal_signal", "vertical_signal", "horizontal_link_margin", "vertical_link_margin"].includes(name)) {
       setSignalTimestamp(new Date().toLocaleString());
     }
+  };
+
+  // --- Signal Calculation Functions ---
+  const calculateHorizontalLinkMargin = (horizontalSignal) => {
+    if (!horizontalSignal || isNaN(horizontalSignal)) return "";
+    const result = parseFloat(horizontalSignal) - 7.9;
+    return result.toFixed(1);
+  };
+
+  const calculateVerticalLinkMargin = (verticalSignal) => {
+    if (!verticalSignal || isNaN(verticalSignal)) return "";
+    const result = parseFloat(verticalSignal) - 9.4;
+    return result.toFixed(1);
+  };
+
+  const handleSignalChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => {
+      const updatedFormData = { ...prev, [name]: value };
+
+      // Calculate link margins automatically
+      if (name === "horizontal_signal") {
+        updatedFormData.horizontal_link_margin = calculateHorizontalLinkMargin(value);
+      } else if (name === "vertical_signal") {
+        updatedFormData.vertical_link_margin = calculateVerticalLinkMargin(value);
+      }
+
+      return updatedFormData;
+    });
+
+    setSignalTimestamp(new Date().toLocaleString());
+  };
+
+  // --- Password Visibility Toggle ---
+  const handleClickShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleMouseDownPassword = (event) => {
+    event.preventDefault();
   };
 
   // --- File Upload Handlers ---
@@ -229,20 +285,6 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
         showToast("Service acceptance form uploaded successfully!", "success");
       } else {
         showToast("Please upload a PDF file", "error");
-      }
-    }
-  };
-
-  const handleSignalImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.type.startsWith('image/')) {
-        setSignalImageFile(file);
-        setFilesChanged(prev => ({ ...prev, signal_image: true }));
-        setRemovedFiles(prev => ({ ...prev, signal_image: false }));
-        showToast("Signal image uploaded successfully!", "success");
-      } else {
-        showToast("Please upload an image file", "error");
       }
     }
   };
@@ -278,14 +320,6 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     showToast("Service acceptance form removed!", "info");
   };
 
-  const handleRemoveSignalImage = () => {
-    setSignalImageFile(null);
-    setSignalImageUrl(null);
-    setFilesChanged(prev => ({ ...prev, signal_image: true }));
-    setRemovedFiles(prev => ({ ...prev, signal_image: true }));
-    showToast("Signal image removed!", "info");
-  };
-
   const handleRemoveDishAntennaImage = () => {
     setDishAntennaImageFile(null);
     setDishAntennaImageUrl(null);
@@ -297,11 +331,11 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
   // --- Contacts Table Logic ---
   const handleAddContact = () => {
     setAdding(true);
-    setNewContact({ name: "", email: "", phone: "" });
+    setNewContact({ name: "", email: "", phone: "", designation: "" });
   };
 
   const handleSaveNewContact = () => {
-    if (!newContact.name || !newContact.email || !newContact.phone) {
+    if (!newContact.name || !newContact.email || !newContact.phone || !newContact.designation) {
       showToast("Please fill all contact fields", "error");
       return;
     }
@@ -309,7 +343,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     const updatedContacts = [...contacts, newContact];
     setContacts(updatedContacts);
     setAdding(false);
-    setNewContact({ name: "", email: "", phone: "" });
+    setNewContact({ name: "", email: "", phone: "", designation: "" });
     showToast("Contact added successfully!", "success");
   };
 
@@ -317,7 +351,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
 
   const handleSaveEdit = (index) => {
     const editedContact = contacts[index];
-    if (!editedContact.name || !editedContact.email || !editedContact.phone) {
+    if (!editedContact.name || !editedContact.email || !editedContact.phone || !editedContact.designation) {
       showToast("All contact fields are required", "error");
       return;
     }
@@ -356,7 +390,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     }
   };
 
-  // Main save function - UPDATED: Handles both new files and existing files in edit mode
+  // Main save function
   const handleSaveResort = async () => {
     if (!formData.resort_name || !formData.category || !formData.iptv_vendor || !formData.island) {
       return showToast("Please fill all required fields", "error");
@@ -385,70 +419,67 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     formDataToSend.append('staff_area_tv', formData.staff_area_tv);
     formDataToSend.append('guest_area_tv', formData.guest_area_tv);
     formDataToSend.append('distribution_model', formData.distribution_model);
+    formDataToSend.append('streamer_types', formData.streamer_types); // New field
     formDataToSend.append('tvro_type', formData.tvro_type);
     formDataToSend.append('tvro_dish', formData.tvro_dish);
     formDataToSend.append('horizontal_signal', formData.horizontal_signal);
     formDataToSend.append('vertical_signal', formData.vertical_signal);
     formDataToSend.append('horizontal_link_margin', formData.horizontal_link_margin);
     formDataToSend.append('vertical_link_margin', formData.vertical_link_margin);
+    formDataToSend.append('dish_type', formData.dish_type);
+    formDataToSend.append('dish_brand', formData.dish_brand);
     formDataToSend.append('contact_details', JSON.stringify(contacts));
     formDataToSend.append('signal_level_timestamp', formattedDate);
 
-    // Handle file uploads - NEW LOGIC
-    if (isEditMode) {
-      // Add removal flags for backend
-      formDataToSend.append('removed_survey_form', removedFiles.survey_form.toString());
-      formDataToSend.append('removed_service_acceptance_form', removedFiles.service_acceptance_form.toString());
-      formDataToSend.append('removed_signal_image', removedFiles.signal_image.toString());
-      formDataToSend.append('removed_dish_antena_image', removedFiles.dish_antena_image.toString());
+    // Append IP fields
+    formDataToSend.append('transmodelator_ip', formData.transmodelator_ip);
+    formDataToSend.append('middleware_ip', formData.middleware_ip);
+    formDataToSend.append('username', formData.username);
+    formDataToSend.append('password', formData.password);
 
-      // Survey Form
-      if (filesChanged.survey_form && surveyFormFile && !removedFiles.survey_form) {
-        // New file uploaded
-        formDataToSend.append('survey_form', surveyFormFile);
-      } else if (!filesChanged.survey_form && selectedResort.survey_form && !removedFiles.survey_form) {
-        // Keep existing file - convert buffer to blob
-        const existingFile = bufferToBlob(selectedResort.survey_form, 'application/pdf');
-        if (existingFile) {
-          formDataToSend.append('survey_form', existingFile, 'existing_survey_form.pdf');
-        }
-      }
+    // Handle file uploads - only for Medianet category
+    if (!isOoredoo) {
+      if (isEditMode) {
+        // Add removal flags for backend
+        formDataToSend.append('removed_survey_form', removedFiles.survey_form.toString());
+        formDataToSend.append('removed_service_acceptance_form', removedFiles.service_acceptance_form.toString());
+        formDataToSend.append('removed_dish_antena_image', removedFiles.dish_antena_image.toString());
 
-      // Service Acceptance Form
-      if (filesChanged.service_acceptance_form && serviceAcceptanceFile && !removedFiles.service_acceptance_form) {
-        formDataToSend.append('service_acceptance_form', serviceAcceptanceFile);
-      } else if (!filesChanged.service_acceptance_form && selectedResort.service_acceptance_form && !removedFiles.service_acceptance_form) {
-        const existingFile = bufferToBlob(selectedResort.service_acceptance_form, 'application/pdf');
-        if (existingFile) {
-          formDataToSend.append('service_acceptance_form', existingFile, 'existing_service_acceptance.pdf');
+        // Survey Form
+        if (filesChanged.survey_form && surveyFormFile && !removedFiles.survey_form) {
+          formDataToSend.append('survey_form', surveyFormFile);
+        } else if (!filesChanged.survey_form && selectedResort.survey_form && !removedFiles.survey_form) {
+          const existingFile = bufferToBlob(selectedResort.survey_form, 'application/pdf');
+          if (existingFile) {
+            formDataToSend.append('survey_form', existingFile, 'existing_survey_form.pdf');
+          }
         }
-      }
 
-      // Signal Image
-      if (filesChanged.signal_image && signalImageFile && !removedFiles.signal_image) {
-        formDataToSend.append('signal_image', signalImageFile);
-      } else if (!filesChanged.signal_image && selectedResort.signal_image && !removedFiles.signal_image) {
-        const existingFile = bufferToBlob(selectedResort.signal_image, 'image/jpeg');
-        if (existingFile) {
-          formDataToSend.append('signal_image', existingFile, 'existing_signal_image.jpg');
+        // Service Acceptance Form
+        if (filesChanged.service_acceptance_form && serviceAcceptanceFile && !removedFiles.service_acceptance_form) {
+          formDataToSend.append('service_acceptance_form', serviceAcceptanceFile);
+        } else if (!filesChanged.service_acceptance_form && selectedResort.service_acceptance_form && !removedFiles.service_acceptance_form) {
+          const existingFile = bufferToBlob(selectedResort.service_acceptance_form, 'application/pdf');
+          if (existingFile) {
+            formDataToSend.append('service_acceptance_form', existingFile, 'existing_service_acceptance.pdf');
+          }
         }
-      }
 
-      // Dish Antenna Image
-      if (filesChanged.dish_antena_image && dishAntennaImageFile && !removedFiles.dish_antena_image) {
-        formDataToSend.append('dish_antena_image', dishAntennaImageFile);
-      } else if (!filesChanged.dish_antena_image && selectedResort.dish_antena_image && !removedFiles.dish_antena_image) {
-        const existingFile = bufferToBlob(selectedResort.dish_antena_image, 'image/jpeg');
-        if (existingFile) {
-          formDataToSend.append('dish_antena_image', existingFile, 'existing_dish_antenna.jpg');
+        // Dish Antenna Image
+        if (filesChanged.dish_antena_image && dishAntennaImageFile && !removedFiles.dish_antena_image) {
+          formDataToSend.append('dish_antena_image', dishAntennaImageFile);
+        } else if (!filesChanged.dish_antena_image && selectedResort.dish_antena_image && !removedFiles.dish_antena_image) {
+          const existingFile = bufferToBlob(selectedResort.dish_antena_image, 'image/jpeg');
+          if (existingFile) {
+            formDataToSend.append('dish_antena_image', existingFile, 'existing_dish_antenna.jpg');
+          }
         }
+      } else {
+        // Add mode - just append new files if they exist
+        if (surveyFormFile) formDataToSend.append('survey_form', surveyFormFile);
+        if (serviceAcceptanceFile) formDataToSend.append('service_acceptance_form', serviceAcceptanceFile);
+        if (dishAntennaImageFile) formDataToSend.append('dish_antena_image', dishAntennaImageFile);
       }
-    } else {
-      // Add mode - just append new files if they exist
-      if (surveyFormFile) formDataToSend.append('survey_form', surveyFormFile);
-      if (serviceAcceptanceFile) formDataToSend.append('service_acceptance_form', serviceAcceptanceFile);
-      if (signalImageFile) formDataToSend.append('signal_image', signalImageFile);
-      if (dishAntennaImageFile) formDataToSend.append('dish_antena_image', dishAntennaImageFile);
     }
 
     setLoading(true);
@@ -482,15 +513,6 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     }
   };
 
-  const handleSignalChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    setSignalTimestamp(new Date().toLocaleString());
-  };
-
   const bufferToUrl = (bufferData, mimeType) => {
     if (!bufferData || !bufferData.data) return null;
 
@@ -502,13 +524,6 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
       console.error("Error converting buffer to URL:", error);
       return null;
     }
-  };
-
-  // Handle cancel for signal image
-  const handleCancelSignalImage = () => {
-    setSignalImageFile(null);
-    setFilesChanged(prev => ({ ...prev, signal_image: false }));
-    showToast("Signal image upload cancelled", "info");
   };
 
   // Handle cancel for dish antenna image
@@ -583,7 +598,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                 <TextField
                   fullWidth
                   size="small"
-                  label="IPTV Vendor"
+                  label="IPTV/Analog"
                   name="iptv_vendor"
                   value={formData.iptv_vendor}
                   onChange={handleChange}
@@ -602,116 +617,91 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
               </Grid>
             </Grid>
 
-            {/* Signal Levels */}
-            <Box sx={{ mb: 0 }}>
-              <Typography variant="h6" color="primary" sx={{ mb: 1, fontWeight: "bold" }}>
-                Signal Levels
-              </Typography>
-
-              <Grid container spacing={3}>
-                {/* First Row */}
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    sx={{ width: "80%", maxWidth: 200 }}
-                    size="small"
-                    type="number"
-                    label="Horizontal Signal"
-                    name="horizontal_signal"
-                    value={formData.horizontal_signal}
-                    onChange={handleSignalChange}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    sx={{ width: "80%", maxWidth: 200 }}
-                    size="small"
-                    type="number"
-                    label="Vertical Signal"
-                    name="vertical_signal"
-                    value={formData.vertical_signal}
-                    onChange={handleSignalChange}
-                  />
-                </Grid>
-
-                {/* Second Row */}
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    sx={{ width: "80%", maxWidth: 200 }}
-                    size="small"
-                    type="number"
-                    label="Horizontal Link Margin"
-                    name="horizontal_link_margin"
-                    value={formData.horizontal_link_margin}
-                    onChange={handleSignalChange}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    sx={{ width: "80%", maxWidth: 200 }}
-                    size="small"
-                    type="number"
-                    label="Vertical Link Margin"
-                    name="vertical_link_margin"
-                    value={formData.vertical_link_margin}
-                    onChange={handleSignalChange}
-                  />
-                </Grid>
-              </Grid>
-
-              {/* Timestamp */}
-              <Box sx={{ height: signalTimestamp ? 'auto' : '24px', mt: 2, pl: 1 }}>
-                {signalTimestamp && (
-                  <Typography variant="body2" color="textSecondary">
-                    Last Updated: {signalTimestamp}
+            {/* Signal Levels - Show for Medianet always */}
+            {!isOoredoo && (
+              <Fade in={!isOoredoo}>
+                <Box sx={{ mb: 0 }}>
+                  <Typography variant="h6" color="primary" sx={{ mb: 1, fontWeight: 'bold' }}>
+                    Signal Levels
                   </Typography>
-                )}
-              </Box>
 
-              {/* Signal Image Upload */}
-              <Box sx={{ mt: 2 }}>
+                  <Grid container spacing={3}>
+                    {/* First Row */}
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        sx={{ width: "80%", maxWidth: 200 }}
+                        size="small"
+                        type="number"
+                        label="Horizontal Signal"
+                        name="horizontal_signal"
+                        value={formData.horizontal_signal}
+                        onChange={handleSignalChange}
+                        helperText=""
+                      />
+                    </Grid>
+                    {/* Second Row */}
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        sx={{ width: "80%", maxWidth: 200 }}
+                        size="small"
+                        type="number"
+                        label="Horizontal Link Margin"
+                        name="horizontal_link_margin"
+                        value={formData.horizontal_link_margin}
+                        onChange={handleSignalChange}
+                        InputProps={{
+                          readOnly: true,
+                        }}
+                        helperText=""
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        sx={{ width: "80%", maxWidth: 200 }}
+                        size="small"
+                        type="number"
+                        label="Vertical Signal"
+                        name="vertical_signal"
+                        value={formData.vertical_signal}
+                        onChange={handleSignalChange}
+                        helperText=""
+                      />
+                    </Grid>
 
-                {signalImageFile && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                    <Typography variant="body2" color="success.main">
-                      ✓ {truncateText(signalImageFile.name, 25)}
-                    </Typography>
-                    <Button
-                      variant="text"
-                      size="small"
-                      color="error"
-                      onClick={handleCancelSignalImage}
-                    >
-                      Cancel
-                    </Button>
+
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        sx={{ width: "80%", maxWidth: 200 }}
+                        size="small"
+                        type="number"
+                        label="Vertical Link Margin"
+                        name="vertical_link_margin"
+                        value={formData.vertical_link_margin}
+                        onChange={handleSignalChange}
+                        InputProps={{
+                          readOnly: true,
+                        }}
+                        helperText=""
+                      />
+                    </Grid>
+                  </Grid>
+
+                  {/* Timestamp */}
+                  <Box sx={{ height: signalTimestamp ? 'auto' : '24px', mt: 2, pl: 1 }}>
+                    {signalTimestamp && (
+                      <Typography variant="body2" color="textSecondary">
+                        Last Updated: {signalTimestamp}
+                      </Typography>
+                    )}
                   </Box>
-                )}
-                {!signalImageFile && signalImageUrl && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                    <Button
-                      variant="text"
-                      size="small"
-                      href={signalImageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      startIcon={<ImageIcon />}
-                    >
-                      Download Signal Image
-                    </Button>
-                    <Button
-                      variant="text"
-                      size="small"
-                      color="error"
-                      onClick={handleRemoveSignalImage}
-                      startIcon={<CancelIcon />}
-                    >
-                      Remove
-                    </Button>
-                  </Box>
-                )}
-              </Box>
-            </Box>
+                </Box>
+              </Fade>
+            )}
 
-            {/* Contacts Table */}
+
+
+
+            {/* Contacts Table - Always show */}
             <Box sx={{ maxWidth: 835, position: "relative" }}>
               {/* Resort Contacts Heading with Add button on right */}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -728,8 +718,8 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                   border: "1px solid #b7c6eeff",
                   borderRadius: 1,
                   overflowY: "auto",
-                  maxHeight: 3 * 52,
-                  minHeight: 3 * 52,
+                  maxHeight: 3 * 42,
+                  minHeight: 3 * 42,
                   position: "relative",
                 }}
               >
@@ -793,6 +783,21 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           backgroundColor: "#2e65a3",
                           color: "#fff",
                           fontWeight: "bold",
+                          textAlign: "left",
+                          width: "25%",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 2,
+                          borderBottom: "2px solid #1e4a7a"
+                        }}
+                      >
+                        Designation
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          backgroundColor: "#2e65a3",
+                          color: "#fff",
+                          fontWeight: "bold",
                           textAlign: "center",
                           width: "25%",
                           position: "sticky",
@@ -815,7 +820,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                         }}
                       >
                         {/* Name - with truncation */}
-                        <TableCell sx={{ textAlign: "center" }}>
+                        <TableCell sx={{ textAlign: "left" }}>
                           {editingIndex === index ? (
                             <TextField
                               fullWidth
@@ -844,7 +849,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                         </TableCell>
 
                         {/* Email - with truncation */}
-                        <TableCell sx={{ textAlign: "center" }}>
+                        <TableCell sx={{ textAlign: "left" }}>
                           {editingIndex === index ? (
                             <TextField
                               fullWidth
@@ -873,7 +878,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                         </TableCell>
 
                         {/* Phone - with truncation */}
-                        <TableCell sx={{ textAlign: "center" }}>
+                        <TableCell sx={{ textAlign: "left" }}>
                           {editingIndex === index ? (
                             <TextField
                               fullWidth
@@ -896,6 +901,34 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                 }}
                               >
                                 {truncateText(contact.phone, 12)}
+                              </Typography>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                        {/* Designation - with truncation */}
+                        <TableCell sx={{ textAlign: "left" }}>
+                          {editingIndex === index ? (
+                            <TextField
+                              fullWidth
+                              size="small"
+                              value={contact.designation}
+                              onChange={(e) => {
+                                const updated = [...contacts];
+                                updated[index].designation = e.target.value;
+                                setContacts(updated);
+                              }}
+                            />
+                          ) : (
+                            <Tooltip title={contact.designation} arrow>
+                              <Typography
+                                sx={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "100%"
+                                }}
+                              >
+                                {truncateText(contact.designation, 15)}
                               </Typography>
                             </Tooltip>
                           )}
@@ -972,6 +1005,15 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           />
                         </TableCell>
                         <TableCell sx={{ textAlign: "center" }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            placeholder="Designation"
+                            value={newContact.designation}
+                            onChange={(e) => setNewContact({ ...newContact, designation: e.target.value })}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ textAlign: "center" }}>
                           <IconButton size="small" color="success" onClick={handleSaveNewContact}>
                             <SaveIcon />
                           </IconButton>
@@ -985,238 +1027,439 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                 </Table>
               </TableContainer>
 
-              {/* File Upload Buttons after Contacts Table */}
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle1" color="primary" sx={{ mb: 2, fontWeight: 'bold' }}>
-                  Document & Image Uploads
-                </Typography>
 
-                <Grid container spacing={4}>
-                  {/* Column 1 - Survey Form */}
-                  <Grid item xs={12} md={4}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Button
-                        variant="contained"
-                        component="label"
-                        startIcon={<PictureAsPdfIcon />}
-                        size="small"
-                        sx={{
-                          minWidth: '200px',
-                          backgroundColor: '#2e86de',
-                          '&:hover': {
-                            backgroundColor: '#1a5a9a',
-                          }
-                        }}
-                      >
-                        Survey Form
-                        <input
-                          type="file"
-                          hidden
-                          accept=".pdf,application/pdf"
-                          onChange={handleSurveyFormUpload}
+              {/* IP Information Section - Show for Medianet always */}
+              {!isOoredoo && (
+                <Fade in={!isOoredoo}>
+                  <Box sx={{ mt: 2 }} >
+                    <Typography
+                      variant="h6"
+                      color="primary"
+                      sx={{ mb: 3, fontWeight: "bold" }}
+                    >
+                      IP Information
+                    </Typography>
+
+                    {/* ✅ 3 Column, 2 Row Grid Layout */}
+                    <Grid container spacing={7}>
+                      {/* First Row */}
+                      <Grid item xs={12} sm={4}>
+                        {/* Distribution Model */}
+                        <Select
+                          fullWidth
+                          size="small"
+                          displayEmpty
+                          name="distribution_model"
+                          value={formData.distribution_model}
+                          onChange={handleChange}
+                        >
+                          <MenuItem value="" disabled>
+                            Distribution Model
+                          </MenuItem>
+                          <MenuItem value="medianet_streamer">Medianet Streamer</MenuItem>
+                          <MenuItem value="analogue">Analogue</MenuItem>
+                          <MenuItem value="iptv">IPTV</MenuItem>
+                          <MenuItem value="hybrid">Hybrid</MenuItem>
+                        </Select>
+                      </Grid>
+
+                      <Grid item xs={12} sm={4}>
+                        {/* Transmodelator IP */}
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Transmodelator IP"
+                          name="transmodelator_ip"
+                          value={formData.transmodelator_ip}
+                          onChange={handleChange}
                         />
-                      </Button>
-                      {surveyFormFile && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, mt: 2 }}>
-                          <Typography variant="body2" color="success.main">
-                            ✓ {truncateText(surveyFormFile.name, 25)}
-                          </Typography>
-                          <Button
-                            variant="outlined"
+                      </Grid>
+
+                      <Grid item xs={12} sm={4}>
+                        {/* Middleware IP */}
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Middleware IP"
+                          name="middleware_ip"
+                          value={formData.middleware_ip}
+                          onChange={handleChange}
+                        />
+                      </Grid>
+
+                      {/* Second Row */}
+                      <Grid item xs={12} sm={4} width={188}>
+                        {/* Streamer Type - Show when distribution model is Medianet Streamer */}
+                        {formData.distribution_model === "medianet_streamer" && (
+                          <Select
+                            fullWidth
                             size="small"
-                            color="error"
-                            onClick={handleCancelSurveyForm}
+                            displayEmpty
+                            name="streamer_types"
+                            value={formData.streamer_types}
+                            onChange={handleChange}
                           >
-                            Cancel
-                          </Button>
-                        </Box>
-                      )}
-                      {!surveyFormFile && surveyFormUrl && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, mt: 2 }}>
+                            <MenuItem value="" disabled>
+                              Streamer Type
+                            </MenuItem>
+                            <MenuItem value="TS Streamer">TS Streamer</MenuItem>
+                            <MenuItem value="S2 Streamer">S2 Streamer</MenuItem>
+                          </Select>
+                        )}
+                      </Grid>
+
+                      <Grid item xs={12} sm={4}>
+                        {/* Username - Show when middleware_ip is entered */}
+                        {showCredentials && (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Username"
+                            name="username"
+                            value={formData.username}
+                            onChange={handleChange}
+                          />
+                        )}
+                      </Grid>
+
+                      <Grid item xs={12} sm={4}>
+                        {/* Password - Show when middleware_ip is entered */}
+                        {showCredentials && (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Password"
+                            name="password"
+                            type={showPassword ? "text" : "password"}
+                            value={formData.password}
+                            onChange={handleChange}
+                            InputProps={{
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <IconButton
+                                    aria-label="toggle password visibility"
+                                    onClick={handleClickShowPassword}
+                                    onMouseDown={handleMouseDownPassword}
+                                    edge="end"
+                                  >
+                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                  </IconButton>
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                        )}
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Fade>
+              )}
+
+              {/* File Upload Buttons after Contacts Table - Only show for Medianet */}
+              {!isOoredoo && (
+                <Fade in={!isOoredoo}>
+                  {/* File Upload Buttons after Contacts Table */}
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle1" color="primary" sx={{ mb: 2, fontWeight: 'bold' }}>
+                      Document & Image Uploads
+                    </Typography>
+
+                    <Grid container spacing={4}>
+                      {/* Column 1 - Survey Form */}
+                      <Grid item xs={12} md={4}>
+                        <Box sx={{ textAlign: 'center' }}>
                           <Button
                             variant="contained"
-                            size="small"
-                            href={surveyFormUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            component="label"
                             startIcon={<PictureAsPdfIcon />}
+                            size="small"
                             sx={{
-                              backgroundColor: '#28a745',
+                              minWidth: '200px',
+                              backgroundColor: '#2e86de',
                               '&:hover': {
-                                backgroundColor: '#1e7e34',
+                                backgroundColor: '#1a5a9a',
                               }
                             }}
                           >
-                            Download
+                            Survey Form
+                            <input
+                              type="file"
+                              hidden
+                              accept=".pdf,application/pdf"
+                              onChange={handleSurveyFormUpload}
+                            />
                           </Button>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            color="error"
-                            onClick={handleRemoveSurveyForm}
-                            startIcon={<CancelIcon />}
-                          >
-                            Remove
-                          </Button>
+                          {surveyFormFile && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 2 }}>
+                              <Typography variant="body2" color="success.main">
+                                ✓ {truncateText(surveyFormFile.name, 25)}
+                              </Typography>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={handleCancelSurveyForm}
+                                sx={{ p: 0.5 }}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
+                          {!surveyFormFile && surveyFormUrl && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 2 }}>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                href={surveyFormUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                startIcon={<PictureAsPdfIcon />}
+                                sx={{
+                                  backgroundColor: '#28a745',
+                                  '&:hover': {
+                                    backgroundColor: '#1e7e34',
+                                  }
+                                }}
+                              >
+                                Download
+                              </Button>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={handleRemoveSurveyForm}
+                                sx={{ p: 0.5 }}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
                         </Box>
-                      )}
-                    </Box>
-                  </Grid>
+                      </Grid>
 
-                  {/* Column 2 - Service Acceptance */}
-                  <Grid item xs={12} md={4}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Button
-                        variant="contained"
-                        component="label"
-                        startIcon={<PictureAsPdfIcon />}
-                        size="small"
-                        sx={{
-                          minWidth: '200px',
-                          backgroundColor: '#2e86de',
-                          '&:hover': {
-                            backgroundColor: '#1a5a9a',
-                          }
-                        }}
-                      >
-                        Service Acceptance
-                        <input
-                          type="file"
-                          hidden
-                          accept=".pdf,application/pdf"
-                          onChange={handleServiceAcceptanceUpload}
-                        />
-                      </Button>
-                      {serviceAcceptanceFile && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, mt: 2 }}>
-                          <Typography variant="body2" color="success.main">
-                            ✓ {truncateText(serviceAcceptanceFile.name, 25)}
-                          </Typography>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            color="error"
-                            onClick={handleCancelServiceAcceptance}
-                          >
-                            Cancel
-                          </Button>
-                        </Box>
-                      )}
-                      {!serviceAcceptanceFile && serviceAcceptanceUrl && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, mt: 2 }}>
+                      {/* Column 2 - Service Acceptance */}
+                      <Grid item xs={12} md={4}>
+                        <Box sx={{ textAlign: 'center' }}>
                           <Button
                             variant="contained"
-                            size="small"
-                            href={serviceAcceptanceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            component="label"
                             startIcon={<PictureAsPdfIcon />}
+                            size="small"
                             sx={{
-                              backgroundColor: '#28a745',
+                              minWidth: '200px',
+                              backgroundColor: '#2e86de',
                               '&:hover': {
-                                backgroundColor: '#1e7e34',
+                                backgroundColor: '#1a5a9a',
                               }
                             }}
                           >
-                            Download
+                            Service Acceptance
+                            <input
+                              type="file"
+                              hidden
+                              accept=".pdf,application/pdf"
+                              onChange={handleServiceAcceptanceUpload}
+                            />
                           </Button>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            color="error"
-                            onClick={handleRemoveServiceAcceptance}
-                            startIcon={<CancelIcon />}
-                          >
-                            Remove
-                          </Button>
+                          {serviceAcceptanceFile && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 2 }}>
+                              <Typography variant="body2" color="success.main">
+                                ✓ {truncateText(serviceAcceptanceFile.name, 25)}
+                              </Typography>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={handleCancelServiceAcceptance}
+                                sx={{ p: 0.5 }}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
+                          {!serviceAcceptanceFile && serviceAcceptanceUrl && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 2 }}>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                href={serviceAcceptanceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                startIcon={<PictureAsPdfIcon />}
+                                sx={{
+                                  backgroundColor: '#28a745',
+                                  '&:hover': {
+                                    backgroundColor: '#1e7e34',
+                                  }
+                                }}
+                              >
+                                Download
+                              </Button>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={handleRemoveServiceAcceptance}
+                                sx={{ p: 0.5 }}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
                         </Box>
-                      )}
-                    </Box>
-                  </Grid>
+                      </Grid>
 
-                  {/* Column 3 - Images */}
-                  <Grid item xs={12} md={4}>
-                    {/* Dish Antenna Image */}
-                    <Box sx={{ textAlign: 'center', mb: 3 }}>
-                      <Button
-                        variant="contained"
-                        component="label"
-                        startIcon={<ImageIcon />}
-                        size="small"
-                        sx={{
-                          minWidth: '200px',
-                          backgroundColor: '#2e86de',
-                          '&:hover': {
-                            backgroundColor: '#1a5a9a',
-                          }
-                        }}
-                      >
-                        Dish Antenna Image
-                        <input
-                          type="file"
-                          hidden
-                          accept="image/*"
-                          onChange={handleDishAntennaImageUpload}
-                        />
-                      </Button>
-                      {dishAntennaImageFile && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, mt: 2 }}>
-                          <Typography variant="body2" color="success.main">
-                            ✓ {truncateText(dishAntennaImageFile.name, 25)}
-                          </Typography>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            color="error"
-                            onClick={handleCancelDishAntennaImage}
-                          >
-                            Cancel
-                          </Button>
-                        </Box>
-                      )}
-                      {!dishAntennaImageFile && dishAntennaImageUrl && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, mt: 2 }}>
+                      {/* Column 3 - Images */}
+                      <Grid item xs={12} md={4}>
+                        {/* Dish Antenna Image */}
+                        <Box sx={{ textAlign: 'center', mb: 3 }}>
                           <Button
                             variant="contained"
-                            size="small"
-                            href={dishAntennaImageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            component="label"
                             startIcon={<ImageIcon />}
+                            size="small"
                             sx={{
-                              backgroundColor: '#28a745',
+                              minWidth: '200px',
+                              backgroundColor: '#2e86de',
                               '&:hover': {
-                                backgroundColor: '#1e7e34',
+                                backgroundColor: '#1a5a9a',
                               }
                             }}
                           >
-                            Download
+                            Dish Antenna Image
+                            <input
+                              type="file"
+                              hidden
+                              accept="image/*"
+                              onChange={handleDishAntennaImageUpload}
+                            />
                           </Button>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            color="error"
-                            onClick={handleRemoveDishAntennaImage}
-                            startIcon={<CancelIcon />}
-                          >
-                            Remove
-                          </Button>
+                          {dishAntennaImageFile && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 2 }}>
+                              <Typography variant="body2" color="success.main">
+                                ✓ {truncateText(dishAntennaImageFile.name, 25)}
+                              </Typography>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={handleCancelDishAntennaImage}
+                                sx={{ p: 0.5 }}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
+                          {!dishAntennaImageFile && dishAntennaImageUrl && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 2 }}>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                href={dishAntennaImageUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                startIcon={<ImageIcon />}
+                                sx={{
+                                  backgroundColor: '#28a745',
+                                  '&:hover': {
+                                    backgroundColor: '#1e7e34',
+                                  }
+                                }}
+                              >
+                                Download
+                              </Button>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={handleRemoveDishAntennaImage}
+                                sx={{ p: 0.5 }}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
                         </Box>
-                      )}
-                    </Box>
-
-                    {/* Signal Image - If you have signal image, add it here with the same styling */}
-                  </Grid>
-                </Grid>
-              </Box>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Fade>
+              )}
             </Box>
+
           </Grid>
 
           {/* RHS */}
-          <Grid item xs={12} md={6} sx={{ display: "flex", flexDirection: "column", gap: 2.6 }}>
-            <Typography variant="h6" color="primary" sx={{ mb: 0, fontWeight: "bold" }}>
+          <Grid item xs={12} md={6} sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {/* TVRO Information - Only show for Medianet */}
+            {!isOoredoo && (
+              <Fade in={!isOoredoo}>
+                <Box>
+                  <Typography variant="h6" color="primary" sx={{ mb: 0, mt: 2, fontWeight: 'bold' }}>
+                    TVRO Information
+                  </Typography>
+                  <Grid item xs={12} sx={{ mt: 1 }}>
+                    <Select
+                      fullWidth
+                      size="small"
+                      displayEmpty
+                      name="tvro_type"
+                      value={formData.tvro_type}
+                      onChange={handleChange}
+                      sx={{ mb: 2 }}
+                    >
+                      <MenuItem value="" disabled>
+                        TVRO Type
+                      </MenuItem>
+                      <MenuItem value="MMDS">MMDS</MenuItem>
+                      <MenuItem value="Satellite">Satellite</MenuItem>
+
+                    </Select>
+                  </Grid>
+
+                  {/* Dish Type dropdown */}
+                  <Grid item xs={12} sx={{ mt: 2 }}>
+                    <Select
+                      fullWidth
+                      size="small"
+                      displayEmpty
+                      name="dish_type"
+                      value={formData.dish_type || ""}
+                      onChange={handleChange}
+                      sx={{ mb: 2 }}
+                    >
+                      <MenuItem value="" disabled>
+                        Dish Type
+                      </MenuItem>
+                      <MenuItem value="Solid">Solid</MenuItem>
+                      <MenuItem value="Mesh">Mesh</MenuItem>
+                    </Select>
+                  </Grid>
+
+                  {/* Dish Brand text input */}
+                  <Grid item xs={12} sx={{ mt: 2 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Dish Brand"
+                      name="dish_brand"
+                      value={formData.dish_brand || ""}
+                      onChange={handleChange}
+                      sx={{ mb: 2 }}
+                    />
+                  </Grid>
+
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Dish Antanna Size"
+                    name="tvro_dish"
+                    value={formData.tvro_dish}
+                    onChange={handleChange}
+                    sx={{ mt: 2 }}
+                  />
+                </Box>
+              </Fade>
+            )}
+
+            <Typography variant="h6" color="primary" sx={{ mb: 0, fontWeight: 'bold' }}>
               TV Points & Distribution
             </Typography>
+
             <TextField
               fullWidth
               size="small"
@@ -1227,6 +1470,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
               onChange={handleChange}
               sx={{ mb: 2 }}
             />
+
             <TextField
               fullWidth
               size="small"
@@ -1237,50 +1481,14 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
               onChange={handleChange}
               sx={{ mb: 2 }}
             />
-            <Select
-              fullWidth
-              size="small"
-              displayEmpty
-              name="distribution_model"
-              value={formData.distribution_model}
-              onChange={handleChange}
-            >
-              <MenuItem value="" disabled>
-                Distribution Model
-              </MenuItem>
-              <MenuItem value="medianet_streamer">Medianet Streamer</MenuItem>
-              <MenuItem value="analogue">Analogue</MenuItem>
-              <MenuItem value="iptv">IPTV</MenuItem>
-              <MenuItem value="hybrid">Hybrid</MenuItem>
-            </Select>
 
-            <Typography variant="h6" color="primary" sx={{ mb: 0, mt: 2, fontWeight: "bold" }}>
-              TVRO Information
-            </Typography>
-            <Grid item xs={12}>
-              <Select fullWidth size="small" displayEmpty name="tvro_type" value={formData.tvro_type} onChange={handleChange}>
-                <MenuItem value="" disabled>
-                  TVRO Type
-                </MenuItem>
-                <MenuItem value="MMDS">MMDS</MenuItem>
-                <MenuItem value="Satellite">Satellite</MenuItem>
-              </Select>
-            </Grid>
-            <TextField
-              fullWidth
-              size="small"
-              label="TVRO Dish"
-              name="tvro_dish"
-              value={formData.tvro_dish}
-              onChange={handleChange}
-              sx={{ mt: 2 }}
-            />
+
           </Grid>
         </Grid>
       </DialogContent>
 
       <Divider />
-      <DialogActions sx={{ height: 25, mt: 1 }}>
+      <DialogActions sx={{ p: 2, height: 10, gap: 2 }}>
         <Button variant="outlined" onClick={() => setShowModal(false)}>
           Cancel
         </Button>

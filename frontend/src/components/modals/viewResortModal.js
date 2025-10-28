@@ -33,6 +33,8 @@ import {
     Image,
     People,
     AccessTime,
+    SettingsEthernet,
+    VpnKey,
 } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -145,12 +147,12 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                     color: "black",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between", // 👈 positions title on left and close button on right
+                    justifyContent: "space-between",
                     gap: 1,
                     py: 2,
                 }}
             >
-                View Resort Details of - {viewResort?.resort_name || "N/A"}
+                View Resort Details  - {viewResort?.resort_name || "N/A"}
                 <IconButton
                     aria-label="close"
                     onClick={() => setViewDialogOpen(false)}
@@ -162,14 +164,13 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                 </IconButton>
             </DialogTitle>
 
-
             <DialogContent dividers sx={{ p: 3, backgroundColor: "#f9f9f9" }}>
                 {viewResort && (
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, }}>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         {/* === Row 1 === */}
-                        <Grid container spacing={6} padding={3}>
+                        <Grid container spacing={8} padding={3}>
                             {/* Resort Info */}
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={4} width={330}>
                                 <Card sx={{ height: "100%" }}>
                                     <CardContent>
                                         <Typography
@@ -185,31 +186,30 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                                             <Business />
                                             Resort Information
                                         </Typography>
-                                        <Box sx={{ display: "grid", gap: 2 }}>
+                                        <Box sx={{ display: "grid", gap: 5 }}>
                                             {/* Resort Name */}
                                             <TextField
                                                 label="Resort Name"
                                                 value={viewResort.resort_name || ""}
                                                 fullWidth
                                                 size="small"
-                                                multiline            // 👈 enables multiple lines
-                                                minRows={3}          // 👈 height of box (3 lines tall)
-                                                maxRows={6}          // 👈 optional limit for expansion
+                                                multiline
+                                                minRows={3}
+                                                maxRows={6}
                                                 InputProps={{
                                                     sx: {
                                                         backgroundColor: "white",
                                                         borderRadius: 1,
-                                                        alignItems: "flex-start", // 👈 keeps text aligned to top
+                                                        alignItems: "flex-start",
                                                     },
                                                 }}
                                                 sx={{
                                                     '& .MuiInputBase-input': {
-                                                        whiteSpace: 'pre-wrap',   // 👈 preserves line breaks
-                                                        wordBreak: 'break-word',  // 👈 wraps long text properly
+                                                        whiteSpace: 'pre-wrap',
+                                                        wordBreak: 'break-word',
                                                     },
                                                 }}
                                             />
-
 
                                             {/* Category */}
                                             <FormControl fullWidth size="small">
@@ -258,143 +258,8 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                                     </CardContent>
                                 </Card>
                             </Grid>
-
-                            {/* Contact Info */}
-                            <Grid item xs={12} md={4} width={480}>
-                                <Card sx={{ height: "100%", width: '100%' }}>
-                                    <CardContent>
-                                        <Typography
-                                            variant="h6"
-                                            sx={{
-                                                mb: 2,
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 1,
-                                                color: "primary.main",
-                                            }}
-                                        >
-                                            <People />
-                                            Resort Contacts
-                                        </Typography>
-                                        {viewResort.contact_details &&
-                                            viewResort.contact_details.length > 0 ? (
-                                            <TableContainer sx={{ maxHeight: 260 }}>
-                                                <Table size="small">
-                                                    <TableHead>
-                                                        <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                                                            <TableCell sx={{ fontWeight: "bold" }}>
-                                                                Name
-                                                            </TableCell>
-                                                            <TableCell sx={{ fontWeight: "bold" }}>
-                                                                Email
-                                                            </TableCell>
-                                                            <TableCell sx={{ fontWeight: "bold" }}>
-                                                                Phone
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    </TableHead>
-                                                    <TableBody>
-                                                        {viewResort.contact_details.map(
-                                                            (contact, index) => (
-                                                                <TableRow key={index} hover>
-                                                                    <TableCell
-                                                                        sx={{
-                                                                            wordWrap: "break-word",
-                                                                            whiteSpace: "normal",
-                                                                            maxWidth: "120px",
-                                                                        }}
-                                                                    >
-                                                                        {contact.name}
-                                                                    </TableCell>
-                                                                    <TableCell
-                                                                        sx={{
-                                                                            wordWrap: "break-word",
-                                                                            whiteSpace: "normal",
-                                                                            maxWidth: "150px",
-                                                                        }}
-                                                                    >
-                                                                        {contact.email}
-                                                                    </TableCell>
-                                                                    <TableCell
-                                                                        sx={{
-                                                                            wordWrap: "break-word",
-                                                                            whiteSpace: "normal",
-                                                                            maxWidth: "100px",
-                                                                        }}
-                                                                    >
-                                                                        {contact.phone}
-                                                                    </TableCell>
-                                                                </TableRow>
-                                                            )
-                                                        )}
-                                                    </TableBody>
-                                                </Table>
-                                            </TableContainer>
-                                        ) : (
-                                            <Typography
-                                                variant="body2"
-                                                color="textSecondary"
-                                                sx={{ fontStyle: "italic" }}
-                                            >
-                                                No contact details available
-                                            </Typography>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </Grid>
-
-                            {/* TVRO Info */}
-                            <Grid item xs={12} md={4}>
-                                <Card sx={{ height: "100%" }}>
-                                    <CardContent>
-                                        <Typography
-                                            variant="h6"
-                                            sx={{
-                                                mb: 2,
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 1,
-                                                color: "primary.main",
-                                            }}
-                                        >
-                                            <Satellite />
-                                            TVRO Information
-                                        </Typography>
-                                        <Box sx={{ display: "grid", gap: 5 }}>
-                                            <TextField
-                                                label="TVRO Type"
-                                                value={viewResort.tvro_type || ""}
-                                                fullWidth
-                                                size="small"
-                                                InputProps={{
-                                                    sx: {
-                                                        backgroundColor: "white",
-                                                        borderRadius: 1,
-                                                    }
-                                                }}
-                                            />
-                                            <TextField
-                                                label="TVRO Dish"
-                                                value={viewResort.tvro_dish || ""}
-                                                fullWidth
-                                                size="small"
-                                                InputProps={{
-                                                    sx: {
-                                                        backgroundColor: "white",
-                                                        borderRadius: 1,
-                                                    }
-                                                }}
-                                            />
-                                        </Box>
-                                    </CardContent>
-                                </Card>
-                            </Grid>
-                        </Grid>
-
-                        {/* === Row 2 === */}
-                        <Grid container spacing={8} p={3}>
                             {/* TV Points & Distribution */}
-                            <Grid item xs={12} md={6} width={260}>
+                            <Grid item xs={12} md={6} width={290} height={420}>
                                 <Card sx={{ height: "100%" }}>
                                     <CardContent>
                                         <Typography
@@ -458,13 +323,173 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                                                         borderRadius: 1,
                                                     }
                                                 }}
-
                                             />
-                                            {renderDocumentLink(
-                                                viewResort.service_acceptance_form,
-                                                "Service Acceptance",
-                                                "application/pdf"
+
+                                            {/* Streamer Type - Only show if distribution model is medianet_streamer */}
+                                            {viewResort.distribution_model === "medianet_streamer" && viewResort.streamer_types && (
+                                                <TextField
+                                                    label="Streamer Type"
+                                                    value={viewResort.streamer_types || ""}
+                                                    fullWidth
+                                                    size="small"
+                                                    InputProps={{
+                                                        sx: {
+                                                            backgroundColor: "white",
+                                                            borderRadius: 1,
+                                                        }
+                                                    }}
+                                                />
                                             )}
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* IP Information */}
+                            <Grid item xs={12} md={4} width={300}>
+                                <Card sx={{ height: "100%" }}>
+                                    <CardContent>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{
+                                                mb: 2,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 1,
+                                                color: "primary.main",
+                                            }}
+                                        >
+                                            <SettingsEthernet />
+                                            IP Information
+                                        </Typography>
+                                        <Box sx={{ display: "grid", gap: 5 }}>
+                                            <TextField
+                                                label="Transmodelator IP"
+                                                value={viewResort.transmodelator_ip || ""}
+                                                fullWidth
+                                                size="small"
+                                                InputProps={{
+                                                    sx: {
+                                                        backgroundColor: "white",
+                                                        borderRadius: 1,
+                                                    }
+                                                }}
+                                            />
+                                            <TextField
+                                                label="Middleware IP"
+                                                value={viewResort.middleware_ip || ""}
+                                                fullWidth
+                                                size="small"
+                                                InputProps={{
+                                                    sx: {
+                                                        backgroundColor: "white",
+                                                        borderRadius: 1,
+                                                    }
+                                                }}
+                                            />
+                                            <TextField
+                                                label="Username"
+                                                value={viewResort.username || ""}
+                                                fullWidth
+                                                size="small"
+                                                InputProps={{
+                                                    sx: {
+                                                        backgroundColor: "white",
+                                                        borderRadius: 1,
+                                                    }
+                                                }}
+                                            />
+                                            <TextField
+                                                label="Password"
+                                                value={viewResort.password || ""}
+                                                fullWidth
+                                                size="small"
+                                                type="password"
+                                                InputProps={{
+                                                    sx: {
+                                                        backgroundColor: "white",
+                                                        borderRadius: 1,
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+
+
+
+                        </Grid>
+
+                        {/* === Row 2 === */}
+                        <Grid container spacing={8} p={3}>
+                            {/* TVRO Info */}
+                            <Grid item xs={12} md={4} width={330}>
+                                <Card sx={{ height: "100%" }}>
+                                    <CardContent>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{
+                                                mb: 2,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 1,
+                                                color: "primary.main",
+                                            }}
+                                        >
+                                            <Satellite />
+                                            TVRO Information
+                                        </Typography>
+                                        <Box sx={{ display: "grid", gap: 5 }}>
+                                            <TextField
+                                                label="TVRO Type"
+                                                value={viewResort.tvro_type || ""}
+                                                fullWidth
+                                                size="small"
+                                                InputProps={{
+                                                    sx: {
+                                                        backgroundColor: "white",
+                                                        borderRadius: 1,
+                                                    }
+                                                }}
+                                            />
+                                            <TextField
+                                                label="Dish Type"
+                                                value={viewResort.dish_type || ""}
+                                                fullWidth
+                                                size="small"
+                                                InputProps={{
+                                                    sx: {
+                                                        backgroundColor: "white",
+                                                        borderRadius: 1,
+                                                    }
+                                                }}
+                                            />
+                                            <TextField
+                                                label="Dish Brand"
+                                                value={viewResort.dish_brand || ""}
+                                                fullWidth
+                                                size="small"
+                                                InputProps={{
+                                                    sx: {
+                                                        backgroundColor: "white",
+                                                        borderRadius: 1,
+                                                    }
+                                                }}
+                                            />
+                                            <TextField
+                                                label="TVRO Dish"
+                                                value={viewResort.tvro_dish || ""}
+                                                fullWidth
+                                                size="small"
+                                                InputProps={{
+                                                    sx: {
+                                                        backgroundColor: "white",
+                                                        borderRadius: 1,
+                                                    }
+                                                }}
+                                            />
                                         </Box>
                                     </CardContent>
                                 </Card>
@@ -551,24 +576,16 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                                                                 color: item.value ? "primary.main" : "text.secondary"
                                                             }
                                                         }}
-
                                                     />
-
                                                 </Box>
-
                                             ))}
-                                            {renderDocumentLink(
-                                                viewResort.survey_form,
-                                                "Survey Form",
-                                                "application/pdf"
-                                            )}
+
                                         </Box>
                                     </CardContent>
                                 </Card>
                             </Grid>
-
                             {/* Timestamp & Documents */}
-                            <Grid item xs={12} md={4} width={300} >
+                            <Grid item xs={12} md={4} width={300}>
                                 <Card sx={{ mb: 5 }}>
                                     <CardContent>
                                         <Typography
@@ -628,6 +645,15 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                                     </CardContent>
                                 </Card>
 
+
+                            </Grid>
+
+                        </Grid>
+
+                        {/* === Row 3 === */}
+                        <Grid container spacing={8} p={3} >
+                            {/* Documents */}
+                            <Grid item xs={12} md={4} width={330}>
                                 <Card>
                                     <CardContent>
                                         <Typography
@@ -641,42 +667,123 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                                             }}
                                         >
                                             <Description />
-
+                                            Documents & Images
                                         </Typography>
-                                        <Grid container spacing={3}>
-                                            <Grid item xs={12}>
-                                                <Typography
-                                                    variant="subtitle2"
-                                                    sx={{
-                                                        mb: 1,
-                                                        color: "text.primary",
-                                                        fontWeight: "medium",
-                                                    }}
-                                                >
-
-                                                </Typography>
-
-
-                                            </Grid>
-                                            <Grid item xs={12}>
-                                                <Typography
-                                                    variant="subtitle2"
-                                                    sx={{
-                                                        mb: 1,
-                                                        color: "text.primary",
-                                                        fontWeight: "medium",
-                                                    }}
-                                                >
-                                                    Image Files
-                                                </Typography>
+                                        <Grid container spacing={5} >
+                                            <Grid item xs={12} >
                                                 {renderDocumentLink(
                                                     viewResort.dish_antena_image,
                                                     "Dish Antenna Image",
                                                     "image/jpeg"
                                                 )}
-
+                                                {renderDocumentLink(
+                                                    viewResort.survey_form,
+                                                    "Survey Form",
+                                                    "application/pdf"
+                                                )}
+                                                {renderDocumentLink(
+                                                    viewResort.service_acceptance_form,
+                                                    "Service Acceptance",
+                                                    "application/pdf"
+                                                )}
                                             </Grid>
                                         </Grid>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Contact Info */}
+                            <Grid item xs={12} md={8} width={650}>
+                                <Card sx={{ height: "100%", width: '100%' }}>
+                                    <CardContent>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{
+                                                mb: 2,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 1,
+                                                color: "primary.main",
+                                            }}
+                                        >
+                                            <People />
+                                            Resort Contacts
+                                        </Typography>
+                                        {viewResort.contact_details &&
+                                            viewResort.contact_details.length > 0 ? (
+                                            <TableContainer sx={{ maxHeight: 260 }}>
+                                                <Table size="small">
+                                                    <TableHead>
+                                                        <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                                                            <TableCell sx={{ fontWeight: "bold" }}>
+                                                                Name
+                                                            </TableCell>
+                                                            <TableCell sx={{ fontWeight: "bold" }}>
+                                                                Designation
+                                                            </TableCell>
+                                                            <TableCell sx={{ fontWeight: "bold" }}>
+                                                                Email
+                                                            </TableCell>
+                                                            <TableCell sx={{ fontWeight: "bold" }}>
+                                                                Phone
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    </TableHead>
+                                                    <TableBody>
+                                                        {viewResort.contact_details.map(
+                                                            (contact, index) => (
+                                                                <TableRow key={index} hover>
+                                                                    <TableCell
+                                                                        sx={{
+                                                                            wordWrap: "break-word",
+                                                                            whiteSpace: "normal",
+                                                                            maxWidth: "120px",
+                                                                        }}
+                                                                    >
+                                                                        {contact.name}
+                                                                    </TableCell>
+                                                                    <TableCell
+                                                                        sx={{
+                                                                            wordWrap: "break-word",
+                                                                            whiteSpace: "normal",
+                                                                            maxWidth: "120px",
+                                                                        }}
+                                                                    >
+                                                                        {contact.designation || "N/A"}
+                                                                    </TableCell>
+                                                                    <TableCell
+                                                                        sx={{
+                                                                            wordWrap: "break-word",
+                                                                            whiteSpace: "normal",
+                                                                            maxWidth: "150px",
+                                                                        }}
+                                                                    >
+                                                                        {contact.email}
+                                                                    </TableCell>
+                                                                    <TableCell
+                                                                        sx={{
+                                                                            wordWrap: "break-word",
+                                                                            whiteSpace: "normal",
+                                                                            maxWidth: "100px",
+                                                                        }}
+                                                                    >
+                                                                        {contact.phone}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            )
+                                                        )}
+                                                    </TableBody>
+                                                </Table>
+                                            </TableContainer>
+                                        ) : (
+                                            <Typography
+                                                variant="body2"
+                                                color="textSecondary"
+                                                sx={{ fontStyle: "italic" }}
+                                            >
+                                                No contact details available
+                                            </Typography>
+                                        )}
                                     </CardContent>
                                 </Card>
                             </Grid>
@@ -692,9 +799,8 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                     variant="outlined"
                     sx={{ minWidth: '100px' }}
                 >
-                    Close
+                    Cancel
                 </Button>
-
             </DialogActions>
         </Dialog>
     );

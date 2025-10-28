@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import AddResortModal from "../components/modals/addResortModal";
 import ViewResortDialog from "../components/modals/viewResortModal";
 import {
+  TableContainer,
   Button,
   Dialog,
   DialogTitle,
@@ -14,7 +15,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   Paper,
@@ -36,6 +36,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { showToast } from "./common/toaster";
 import { canAccess } from "../rbac/canAccess";
+import jsPDF from "jspdf";
 
 const ListView = () => {
   const [tableData, setTableData] = useState([]);
@@ -43,6 +44,7 @@ const ListView = () => {
   const [selectedResort, setSelectedResort] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterCategory, setFilterCategory] = useState("All");
+  const [filterLinkMargin, setFilterLinkMargin] = useState("All");
   const [open, setOpen] = useState(false);
   const [selectedResortId, setSelectedResortId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -53,6 +55,9 @@ const ListView = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuResortId, setMenuResortId] = useState(null);
   const openMenu = Boolean(anchorEl);
+
+  const [downloadAnchorEl, setDownloadAnchorEl] = useState(null);
+  const openDownloadMenu = Boolean(downloadAnchorEl);
 
   const itemsPerPage = 8;
 
@@ -65,22 +70,18 @@ const ListView = () => {
     fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/getAllResorts`)
       .then((res) => res.json())
       .then((data) => {
-
-        // Ensure data is always an array
         if (Array.isArray(data)) {
           setTableData(data);
         } else if (data.rows && Array.isArray(data.rows)) {
-          // in case your API returns { rows: [...] }
           setTableData(data.rows);
         } else {
-          // fallback to empty array
           setTableData([]);
           console.warn("Unexpected API response format:", data);
         }
       })
       .catch((err) => {
         console.error("Error fetching resorts:", err);
-        setTableData([]); // fallback to empty array
+        setTableData([]);
       });
   };
 
@@ -103,7 +104,6 @@ const ListView = () => {
   };
 
   const handleConfirmDelete = () => {
-    // FIXED: Added missing slash in API URL
     fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/deleteResort/${selectedResortId}`, {
       method: "DELETE",
     })
@@ -139,12 +139,30 @@ const ListView = () => {
     setSearchTerm("");
   };
 
+  const checkLinkMargin = (item, criteria) => {
+    const horizontal = parseFloat(item.horizontal_link_margin);
+    const vertical = parseFloat(item.vertical_link_margin);
+
+    switch (criteria) {
+      case "Above 3":
+        return (horizontal > 3 && vertical > 3);
+      case "Below 3":
+        return (horizontal < 3 || vertical < 3);
+      case "All":
+      default:
+        return true;
+    }
+  };
+
   const filteredData = tableData
     .filter((item) =>
       filterCategory === "All" || item.category === filterCategory
     )
     .filter((item) =>
       item.resort_name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .filter((item) =>
+      filterLinkMargin === "All" || checkLinkMargin(item, filterLinkMargin)
     );
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -156,96 +174,34 @@ const ListView = () => {
   const medianetCount = tableData.filter((r) => r.category === "Medianet").length;
   const ooredooCount = tableData.filter((r) => r.category === "Ooredoo").length;
 
-
-  // Function to convert buffer data to download URL
-  const bufferToDownloadUrl = (bufferData, filename, mimeType) => {
-    if (!bufferData || !bufferData.data) return null;
-    try {
-      const byteArray = new Uint8Array(bufferData.data);
-      const blob = new Blob([byteArray], { type: mimeType });
-      return URL.createObjectURL(blob);
-    } catch (error) {
-      console.error("Error converting buffer to URL:", error);
-      return null;
-    }
-  };
-
-  // Function to generate document download links for CSV using buffer data
+  // UPDATED: Function to generate correct document download URLs for CSV
   const generateDocumentLinks = (resort) => {
-    // Determine MIME types based on file content or file names
-    const getMimeType = (document, defaultType = 'application/octet-stream') => {
-      if (!document) return defaultType;
-
-      // If you have file type information in your document object, use it
-      if (document.fileType) {
-        switch (document.fileType.toLowerCase()) {
-          case 'pdf': return 'application/pdf';
-          case 'jpg': case 'jpeg': return 'image/jpeg';
-          case 'png': return 'image/png';
-          case 'gif': return 'image/gif';
-          default: return defaultType;
-        }
-      }
-
-      // Fallback to common types based on field name
-      if (document.filename) {
-        const ext = document.filename.split('.').pop().toLowerCase();
-        switch (ext) {
-          case 'pdf': return 'application/pdf';
-          case 'jpg': case 'jpeg': return 'image/jpeg';
-          case 'png': return 'image/png';
-          case 'gif': return 'image/gif';
-          default: return defaultType;
-        }
-      }
-
-      return defaultType;
-    };
+    const baseUrl = process.env.REACT_APP_LOCALHOST;
+    const resortId = resort.resort_id;
 
     const links = {
       survey_form: resort.survey_form && resort.survey_form.data
-        ? bufferToDownloadUrl(
-          resort.survey_form,
-          `survey_form_${resort.resort_id}.pdf`,
-          getMimeType(resort.survey_form, 'application/pdf')
-        )
+        ? `${baseUrl}/statistics/downloadDocument/survey_form/${resortId}`
         : "Not Available",
-
       service_acceptance_form: resort.service_acceptance_form && resort.service_acceptance_form.data
-        ? bufferToDownloadUrl(
-          resort.service_acceptance_form,
-          `service_acceptance_form_${resort.resort_id}.pdf`,
-          getMimeType(resort.service_acceptance_form, 'application/pdf')
-        )
+        ? `${baseUrl}/statistics/downloadDocument/service_acceptance_form/${resortId}`
         : "Not Available",
-
       dish_antenna_image: resort.dish_antena_image && resort.dish_antena_image.data
-        ? bufferToDownloadUrl(
-          resort.dish_antena_image,
-          `dish_antenna_${resort.resort_id}.jpg`,
-          getMimeType(resort.dish_antena_image, 'image/jpeg')
-        )
+        ? `${baseUrl}/statistics/downloadDocument/dish_antenna_image/${resortId}`
         : "Not Available",
 
-      signal_image: resort.signal_image && resort.signal_image.data
-        ? bufferToDownloadUrl(
-          resort.signal_image,
-          `signal_image_${resort.resort_id}.jpg`,
-          getMimeType(resort.signal_image, 'image/jpeg')
-        )
-        : "Not Available"
     };
 
     return links;
   };
 
-  // Function to download individual documents
+  // UPDATED CSV export function with proper URLs (not blob links)
   const exportToCSV = () => {
     const headers = [
       "No.",
       "Resort Name",
       "Category",
-      "Atoll",
+      "Island",
       "Contact Name",
       "Contact Email",
       "Contact Phone",
@@ -260,10 +216,11 @@ const ListView = () => {
       "Horizontal Link Margin",
       "Vertical Link Margin",
       "Signal Level Timestamp",
-      "Survey Form Link",
-      "Service Acceptance Form Link",
-      "Dish Antenna Image Link",
-      "Signal Image Link"
+      "Streamer Types",
+      "Transmodulator IP",
+      "Middleware IP",
+      "Username",
+      "Password",
     ];
 
     const escapeCSV = (value) => {
@@ -294,10 +251,11 @@ const ListView = () => {
         escapeCSV(item.horizontal_link_margin),
         escapeCSV(item.vertical_link_margin),
         escapeCSV(item.signal_level_timestamp),
-        escapeCSV(documentLinks.survey_form),
-        escapeCSV(documentLinks.service_acceptance_form),
-        escapeCSV(documentLinks.dish_antenna_image),
-        escapeCSV(documentLinks.signal_image)
+        escapeCSV(item.streamer_types),
+        escapeCSV(item.transmodelator_ip),
+        escapeCSV(item.middleware_ip),
+        escapeCSV(item.username),
+        escapeCSV(item.password),
       ];
     });
 
@@ -313,25 +271,529 @@ const ListView = () => {
     showToast("CSV with document links downloaded successfully!", "success");
   };
 
-  const downloadDocument = (bufferData, filename, mimeType) => {
-    const url = bufferToDownloadUrl(bufferData, filename, mimeType);
-    if (url) {
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      // Clean up the URL object
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-    } else {
-      showToast("Document not available for download", "error");
-    }
+  // // COMPLETELY UPDATED PDF export with proper layout management
+  // const exportToPDF = () => {
+  //   const doc = new jsPDF('portrait');
+
+  //   // Helper function to add new page if needed
+  //   const checkPageBreak = (requiredSpace = 20) => {
+  //     if (doc.internal.pageSize.height - doc.internal.getCursorY() < requiredSpace) {
+  //       doc.addPage('portrait');
+  //       return 20; // Return new Y position after page break
+  //     }
+  //     return doc.internal.getCursorY();
+  //   };
+
+  //   // Title for first page
+  //   doc.setFontSize(18);
+  //   doc.setTextColor(40, 40, 40);
+  //   doc.text("COMPLETE RESORT DETAILS REPORT", 105, 20, { align: "center" });
+
+  //   // Report info
+  //   doc.setFontSize(10);
+  //   doc.setTextColor(100, 100, 100);
+  //   doc.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 105, 30, { align: "center" });
+  //   doc.text(`Category Filter: ${filterCategory} | Search: ${searchTerm || "None"} | Total Records: ${filteredData.length}`, 105, 37, { align: "center" });
+
+  //   // Add each resort's data
+  //   filteredData.forEach((item, index) => {
+  //     if (index > 0) {
+  //       doc.addPage('portrait');
+  //     }
+
+  //     let yPosition = 50;
+
+  //     // Resort header
+  //     doc.setFillColor(86, 159, 223);
+  //     doc.rect(14, yPosition, 182, 12, 'F');
+  //     doc.setFontSize(14);
+  //     doc.setFont(undefined, 'bold');
+  //     doc.setTextColor(255, 255, 255);
+  //     doc.text(`RESORT ${index + 1}: ${item.resort_name || "N/A"}`, 105, yPosition + 8, { align: "center" });
+
+  //     yPosition += 20;
+
+  //     // Basic Information Section - Two Column Layout
+  //     doc.setFontSize(12);
+  //     doc.setFont(undefined, 'bold');
+  //     doc.setTextColor(86, 159, 223);
+  //     doc.text("BASIC INFORMATION", 14, yPosition);
+  //     yPosition += 8;
+
+  //     doc.setFontSize(10);
+  //     doc.setFont(undefined, 'normal');
+  //     doc.setTextColor(0, 0, 0);
+
+  //     // Left column
+  //     doc.text(`• Category: ${item.category || "N/A"}`, 20, yPosition);
+  //     doc.text(`• Island: ${item.island || "N/A"}`, 20, yPosition + 7);
+  //     doc.text(`• IPTV Vendor: ${item.iptv_vendor || "N/A"}`, 20, yPosition + 14);
+  //     doc.text(`• Distribution Model: ${item.distribution_model || "N/A"}`, 20, yPosition + 21);
+
+  //     // Right column
+  //     doc.text(`• TVRO Type: ${item.tvro_type || "N/A"}`, 110, yPosition);
+  //     doc.text(`• TVRO Dish: ${item.tvro_dish || "N/A"}`, 110, yPosition + 7);
+  //     doc.text(`• Dish Type: ${item.dish_type || "N/A"}`, 110, yPosition + 14);
+  //     doc.text(`• Dish Brand: ${item.dish_brand || "N/A"}`, 110, yPosition + 21);
+
+  //     yPosition += 35;
+
+  //     // TV Counts
+  //     doc.text(`• Staff Area TVs: ${item.staff_area_tv || "N/A"}`, 20, yPosition);
+  //     doc.text(`• Guest Area TVs: ${item.guest_area_tv || "N/A"}`, 110, yPosition);
+
+  //     yPosition += 15;
+
+  //     // Check page break before next section
+  //     yPosition = checkPageBreak(30);
+
+  //     // Streamer and Network Information Section
+  //     const hasStreamerInfo = item.streamer_types || item.transmodelator_ip || item.middleware_ip || item.username || item.password;
+  //     if (hasStreamerInfo) {
+  //       doc.setFont(undefined, 'bold');
+  //       doc.setTextColor(86, 159, 223);
+  //       doc.text("STREAMER & NETWORK INFORMATION", 14, yPosition);
+  //       yPosition += 8;
+
+  //       doc.setFont(undefined, 'normal');
+  //       doc.setTextColor(0, 0, 0);
+
+  //       if (item.streamer_types) {
+  //         doc.text(`• Streamer Types: ${item.streamer_types}`, 20, yPosition);
+  //         yPosition += 7;
+  //       }
+  //       if (item.transmodelator_ip) {
+  //         doc.text(`• Transmodulator IP: ${item.transmodelator_ip}`, 20, yPosition);
+  //         yPosition += 7;
+  //       }
+  //       if (item.middleware_ip) {
+  //         doc.text(`• Middleware IP: ${item.middleware_ip}`, 20, yPosition);
+  //         yPosition += 7;
+  //       }
+  //       if (item.username) {
+  //         doc.text(`• Username: ${item.username}`, 20, yPosition);
+  //         yPosition += 7;
+  //       }
+  //       if (item.password) {
+  //         doc.text(`• Password: ${item.password}`, 20, yPosition);
+  //         yPosition += 7;
+  //       }
+
+  //       yPosition += 5;
+  //       yPosition = checkPageBreak(30);
+  //     }
+
+  //     // Signal Information Section
+  //     if (item.category === "Medianet") {
+  //       doc.setFont(undefined, 'bold');
+  //       doc.setTextColor(86, 159, 223);
+  //       doc.text("SIGNAL INFORMATION", 14, yPosition);
+  //       yPosition += 8;
+
+  //       doc.setFont(undefined, 'normal');
+  //       doc.setTextColor(0, 0, 0);
+
+  //       // Two column layout for signal info
+  //       doc.text(`• Horizontal Signal: ${item.horizontal_signal || "N/A"}`, 20, yPosition);
+  //       doc.text(`• Vertical Signal: ${item.vertical_signal || "N/A"}`, 110, yPosition);
+  //       doc.text(`• Horizontal Link Margin: ${item.horizontal_link_margin || "N/A"}`, 20, yPosition + 7);
+  //       doc.text(`• Vertical Link Margin: ${item.vertical_link_margin || "N/A"}`, 110, yPosition + 7);
+
+  //       if (item.signal_level_timestamp) {
+  //         doc.text(`• Signal Timestamp: ${item.signal_level_timestamp}`, 20, yPosition + 14);
+  //         yPosition += 21;
+  //       } else {
+  //         yPosition += 14;
+  //       }
+
+  //       yPosition = checkPageBreak(40);
+  //     }
+
+  //     // Contact Details Section - PROPERLY STRUCTURED
+  //     doc.setFont(undefined, 'bold');
+  //     doc.setTextColor(86, 159, 223);
+  //     doc.text("CONTACT DETAILS", 14, yPosition);
+  //     yPosition += 8;
+
+  //     if (item.contact_details && item.contact_details.length > 0) {
+  //       doc.setFont(undefined, 'normal');
+  //       doc.setTextColor(0, 0, 0);
+
+  //       item.contact_details.forEach((contact, contactIndex) => {
+  //         // Check if we need a new page for this contact
+  //         yPosition = checkPageBreak(25);
+
+  //         doc.setFont(undefined, 'bold');
+  //         doc.text(`Contact ${contactIndex + 1}:`, 20, yPosition);
+  //         doc.setFont(undefined, 'normal');
+
+  //         doc.text(`  Name: ${contact.name || "N/A"}`, 25, yPosition + 5);
+  //         doc.text(`  Designation: ${contact.designation || "N/A"}`, 25, yPosition + 10);
+  //         doc.text(`  Email: ${contact.email || "N/A"}`, 25, yPosition + 15);
+  //         doc.text(`  Phone: ${contact.phone || "N/A"}`, 25, yPosition + 20);
+
+  //         yPosition += 28;
+  //       });
+  //     } else {
+  //       doc.setFont(undefined, 'normal');
+  //       doc.setTextColor(0, 0, 0);
+  //       doc.text("No contact details available", 20, yPosition);
+  //       yPosition += 15;
+  //     }
+
+  //     yPosition = checkPageBreak(30);
+
+  //     // Document Availability Section
+  //     doc.setFont(undefined, 'bold');
+  //     doc.setTextColor(86, 159, 223);
+  //     doc.text("DOCUMENT AVAILABILITY", 14, yPosition);
+  //     yPosition += 8;
+
+  //     const documentLinks = generateDocumentLinks(item);
+  //     let docsY = yPosition;
+
+  //     // Function to add document entry
+  //     const addDocumentEntry = (text, available, yPos) => {
+  //       if (available) {
+  //         doc.setTextColor(0, 0, 255);
+  //         doc.text(text, 20, yPos);
+  //         // Note: PDF links would be implemented here if needed
+  //       } else {
+  //         doc.setTextColor(128, 0, 0);
+  //         doc.text(text, 20, yPos);
+  //       }
+  //       return yPos + 6;
+  //     };
+
+  //     // Reset text color
+  //     doc.setTextColor(0, 0, 0);
+
+  //     // Add note about links
+  //     doc.setFontSize(8);
+  //     doc.setTextColor(100, 100, 100);
+  //     doc.text("* Documents can be accessed via the web application", 20, docsY + 5);
+  //     doc.setFontSize(10);
+
+  //     // Additional Notes Section
+  //     const additionalFields = [
+  //       { label: 'LNB Type', value: item.lnb_type },
+  //       { label: 'Modulation', value: item.modulation },
+  //       { label: 'Frequency', value: item.frequency },
+  //       { label: 'Symbol Rate', value: item.symbol_rate },
+  //       { label: 'Polarization', value: item.polarization }
+  //     ].filter(field => field.value);
+
+  //     if (additionalFields.length > 0) {
+  //       yPosition = checkPageBreak(30);
+
+  //       doc.setFont(undefined, 'bold');
+  //       doc.setTextColor(86, 159, 223);
+  //       doc.text("ADDITIONAL INFORMATION", 14, yPosition);
+  //       yPosition += 8;
+
+  //       doc.setFont(undefined, 'normal');
+  //       doc.setTextColor(0, 0, 0);
+
+  //       additionalFields.forEach(field => {
+  //         yPosition = checkPageBreak(10);
+  //         doc.text(`• ${field.label}: ${field.value}`, 20, yPosition);
+  //         yPosition += 6;
+  //       });
+  //     }
+
+  //     // Page footer
+  //     doc.setFontSize(8);
+  //     doc.setTextColor(150, 150, 150);
+  //     doc.text(`Page ${index + 1} of ${filteredData.length}`, 105, 290, { align: "center" });
+  //   });
+
+  //   // Save PDF
+  //   doc.save(`complete_resort_details_${new Date().toISOString().split('T')[0]}.pdf`);
+  //   showToast("Complete resort details PDF downloaded successfully!", "success");
+  // };
+  // COMPLETELY UPDATED PDF export with proper layout management
+  const exportToPDF = () => {
+    const doc = new jsPDF('portrait');
+
+    // Helper function to add new page if needed
+    const checkPageBreak = (currentY, requiredSpace = 20) => {
+      const pageHeight = doc.internal.pageSize.height;
+      if (currentY + requiredSpace > pageHeight - 20) {
+        doc.addPage('portrait');
+        return 20; // Return new Y position after page break
+      }
+      return currentY;
+    };
+
+    // Title for first page
+    doc.setFontSize(18);
+    doc.setTextColor(40, 40, 40);
+    doc.text("COMPLETE RESORT DETAILS REPORT", 105, 20, { align: "center" });
+
+    // Report info
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 105, 30, { align: "center" });
+    doc.text(`Category Filter: ${filterCategory} | Search: ${searchTerm || "None"} | Total Records: ${filteredData.length}`, 105, 37, { align: "center" });
+
+    // Add each resort's data
+    filteredData.forEach((item, index) => {
+      if (index > 0) {
+        doc.addPage('portrait');
+      }
+
+      let yPosition = 50;
+
+      // Resort header
+      doc.setFillColor(86, 159, 223);
+      doc.rect(14, yPosition, 182, 12, 'F');
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(`RESORT ${index + 1}: ${item.resort_name || "N/A"}`, 105, yPosition + 8, { align: "center" });
+
+      yPosition += 20;
+
+      // Basic Information Section - Two Column Layout
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(86, 159, 223);
+      doc.text("BASIC INFORMATION", 14, yPosition);
+      yPosition += 8;
+
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(0, 0, 0);
+
+      // Left column
+      doc.text(`• Category: ${item.category || "N/A"}`, 20, yPosition);
+      doc.text(`• Island: ${item.island || "N/A"}`, 20, yPosition + 7);
+      doc.text(`• IPTV Vendor: ${item.iptv_vendor || "N/A"}`, 20, yPosition + 14);
+      doc.text(`• Distribution Model: ${item.distribution_model || "N/A"}`, 20, yPosition + 21);
+
+      // Right column
+      doc.text(`• TVRO Type: ${item.tvro_type || "N/A"}`, 110, yPosition);
+      doc.text(`• TVRO Dish: ${item.tvro_dish || "N/A"}`, 110, yPosition + 7);
+      doc.text(`• Dish Type: ${item.dish_type || "N/A"}`, 110, yPosition + 14);
+      doc.text(`• Dish Brand: ${item.dish_brand || "N/A"}`, 110, yPosition + 21);
+
+      yPosition += 35;
+
+      // TV Counts
+      doc.text(`• Staff Area TVs: ${item.staff_area_tv || "N/A"}`, 20, yPosition);
+      doc.text(`• Guest Area TVs: ${item.guest_area_tv || "N/A"}`, 110, yPosition);
+
+      yPosition += 15;
+
+      // Check page break before next section
+      yPosition = checkPageBreak(yPosition, 30);
+
+      // Streamer and Network Information Section
+      const hasStreamerInfo = item.streamer_types || item.transmodelator_ip || item.middleware_ip || item.username || item.password;
+      if (hasStreamerInfo) {
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(86, 159, 223);
+        doc.text("STREAMER & NETWORK INFORMATION", 14, yPosition);
+        yPosition += 8;
+
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+
+        if (item.streamer_types) {
+          doc.text(`• Streamer Types: ${item.streamer_types}`, 20, yPosition);
+          yPosition += 7;
+        }
+        if (item.transmodelator_ip) {
+          doc.text(`• Transmodulator IP: ${item.transmodelator_ip}`, 20, yPosition);
+          yPosition += 7;
+        }
+        if (item.middleware_ip) {
+          doc.text(`• Middleware IP: ${item.middleware_ip}`, 20, yPosition);
+          yPosition += 7;
+        }
+        if (item.username) {
+          doc.text(`• Username: ${item.username}`, 20, yPosition);
+          yPosition += 7;
+        }
+        if (item.password) {
+          doc.text(`• Password: ${item.password}`, 20, yPosition);
+          yPosition += 7;
+        }
+
+        yPosition += 5;
+        yPosition = checkPageBreak(yPosition, 30);
+      }
+
+      // Signal Information Section
+      if (item.category === "Medianet") {
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(86, 159, 223);
+        doc.text("SIGNAL INFORMATION", 14, yPosition);
+        yPosition += 8;
+
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+
+        // Two column layout for signal info
+        doc.text(`• Horizontal Signal: ${item.horizontal_signal || "N/A"}`, 20, yPosition);
+        doc.text(`• Vertical Signal: ${item.vertical_signal || "N/A"}`, 110, yPosition);
+        doc.text(`• Horizontal Link Margin: ${item.horizontal_link_margin || "N/A"}`, 20, yPosition + 7);
+        doc.text(`• Vertical Link Margin: ${item.vertical_link_margin || "N/A"}`, 110, yPosition + 7);
+
+        if (item.signal_level_timestamp) {
+          doc.text(`• Signal Timestamp: ${item.signal_level_timestamp}`, 20, yPosition + 14);
+          yPosition += 21;
+        } else {
+          yPosition += 14;
+        }
+
+        yPosition = checkPageBreak(yPosition, 40);
+      }
+
+      // Contact Details Section - PROPERLY STRUCTURED
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(86, 159, 223);
+      doc.text("CONTACT DETAILS", 14, yPosition);
+      yPosition += 8;
+
+      if (item.contact_details && item.contact_details.length > 0) {
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+
+        item.contact_details.forEach((contact, contactIndex) => {
+          // Check if we need a new page for this contact
+          yPosition = checkPageBreak(yPosition, 25);
+
+          doc.setFont(undefined, 'bold');
+          doc.text(`Contact ${contactIndex + 1}:`, 20, yPosition);
+          doc.setFont(undefined, 'normal');
+
+          doc.text(`  Name: ${contact.name || "N/A"}`, 25, yPosition + 5);
+          doc.text(`  Designation: ${contact.designation || "N/A"}`, 25, yPosition + 10);
+          doc.text(`  Email: ${contact.email || "N/A"}`, 25, yPosition + 15);
+          doc.text(`  Phone: ${contact.phone || "N/A"}`, 25, yPosition + 20);
+
+          yPosition += 28;
+        });
+      } else {
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text("No contact details available", 20, yPosition);
+        yPosition += 15;
+      }
+
+      yPosition = checkPageBreak(yPosition, 30);
+
+      // Document Availability Section
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(86, 159, 223);
+      doc.text("DOCUMENT AVAILABILITY", 14, yPosition);
+      yPosition += 8;
+
+      const documentLinks = generateDocumentLinks(item);
+
+      // Document entries
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(0, 0, 0);
+
+      // Survey Form
+      if (documentLinks.survey_form !== "Not Available") {
+        doc.setTextColor(0, 0, 255);
+        doc.text("• Survey Form: Available (click in application)", 20, yPosition);
+      } else {
+        doc.setTextColor(128, 0, 0);
+        doc.text("• Survey Form: Not Available", 20, yPosition);
+      }
+      yPosition += 6;
+
+      // Service Acceptance Form
+      if (documentLinks.service_acceptance_form !== "Not Available") {
+        doc.setTextColor(0, 0, 255);
+        doc.text("• Service Acceptance Form: Available (click in application)", 20, yPosition);
+      } else {
+        doc.setTextColor(128, 0, 0);
+        doc.text("• Service Acceptance Form: Not Available", 20, yPosition);
+      }
+      yPosition += 6;
+
+      // Dish Antenna Image
+      if (documentLinks.dish_antenna_image !== "Not Available") {
+        doc.setTextColor(0, 0, 255);
+        doc.text("• Dish Antenna Image: Available (click in application)", 20, yPosition);
+      } else {
+        doc.setTextColor(128, 0, 0);
+        doc.text("• Dish Antenna Image: Not Available", 20, yPosition);
+      }
+      yPosition += 6;
+
+
+
+
+      // Reset text color
+      doc.setTextColor(0, 0, 0);
+
+      // Add note about links
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text("* Documents can be accessed via the web application", 20, yPosition);
+      doc.setFontSize(10);
+      yPosition += 8;
+
+      // Additional Notes Section
+      const additionalFields = [
+        { label: 'LNB Type', value: item.lnb_type },
+        { label: 'Modulation', value: item.modulation },
+        { label: 'Frequency', value: item.frequency },
+        { label: 'Symbol Rate', value: item.symbol_rate },
+        { label: 'Polarization', value: item.polarization }
+      ].filter(field => field.value);
+
+      if (additionalFields.length > 0) {
+        yPosition = checkPageBreak(yPosition, 30);
+
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(86, 159, 223);
+        doc.text("ADDITIONAL INFORMATION", 14, yPosition);
+        yPosition += 8;
+
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+
+        additionalFields.forEach(field => {
+          yPosition = checkPageBreak(yPosition, 10);
+          doc.text(`• ${field.label}: ${field.value}`, 20, yPosition);
+          yPosition += 6;
+        });
+      }
+
+      // Page footer
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${index + 1} of ${filteredData.length}`, 105, 290, { align: "center" });
+    });
+
+    // Save PDF
+    doc.save(`complete_resort_details_${new Date().toISOString().split('T')[0]}.pdf`);
+    showToast("Complete resort details PDF downloaded successfully!", "success");
   };
 
-  // Enhanced export function that includes document download options
-  const handleExportWithDocuments = () => {
+  const handleOpenDownloadMenu = (event) => {
+    setDownloadAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseDownloadMenu = () => {
+    setDownloadAnchorEl(null);
+  };
+
+  const handleCSVDownload = () => {
     exportToCSV();
+    handleCloseDownloadMenu();
+  };
+
+  const handlePDFDownload = () => {
+    exportToPDF();
+    handleCloseDownloadMenu();
   };
 
   const handleOpenMenu = (event, resortId) => {
@@ -344,14 +806,12 @@ const ListView = () => {
     setMenuResortId(null);
   };
 
-  // Function to truncate text with ellipsis
   const truncateText = (text, maxLength = 25) => {
     if (!text) return "";
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + "...";
   };
 
-  // Updated proportional widths for better content display
   const getColumnWidth = (index) => {
     const widths = [
       "5%",   // No.
@@ -366,7 +826,6 @@ const ListView = () => {
     return widths[index] || "10%";
   };
 
-  // Cell style for truncated content
   const getCellStyle = (index) => ({
     textAlign: "center",
     whiteSpace: "nowrap",
@@ -406,6 +865,7 @@ const ListView = () => {
           sx={{ width: '250px' }}
         />
 
+        {/* Category Filter */}
         <FormControl size="small" sx={{ width: "9.5rem", position: "relative" }}>
           <FontAwesomeIcon
             icon={faFilter}
@@ -442,14 +902,64 @@ const ListView = () => {
           </Select>
         </FormControl>
 
+        {/* Link Margin Filter */}
+        <FormControl size="small" sx={{ width: "9.5rem", position: "relative" }}>
+          <FontAwesomeIcon
+            icon={faFilter}
+            style={{
+              position: "absolute",
+              left: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              color: "rgb(43 142 228)",
+              fontSize: "20px",
+              zIndex: 1,
+            }}
+          />
+          <Select
+            value={filterLinkMargin}
+            onChange={(e) => {
+              setFilterLinkMargin(e.target.value);
+              setCurrentPage(1);
+            }}
+            displayEmpty
+            sx={{
+              pl: 4,
+              borderRadius: "10px",
+              fontWeight: "bold",
+              fontSize: "14px",
+              backgroundColor: "#f0f0f0",
+              height: "2.3rem",
+            }}
+          >
+            <MenuItem value="All"><em>All Link Margins</em></MenuItem>
+            <MenuItem value="Above 3">Above Three</MenuItem>
+            <MenuItem value="Below 3">Below Three</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Download Button with Menu */}
         <Button
           variant="contained"
           startIcon={<GetApp />}
-          onClick={handleExportWithDocuments}
+          onClick={handleOpenDownloadMenu}
           sx={{ borderRadius: "9px", textTransform: "none", backgroundColor: "green" }}
         >
           Download
         </Button>
+        <Menu
+          anchorEl={downloadAnchorEl}
+          open={openDownloadMenu}
+          onClose={handleCloseDownloadMenu}
+        >
+          <MenuItem onClick={handlePDFDownload}>
+            Download as PDF
+          </MenuItem>
+          <MenuItem onClick={handleCSVDownload}>
+            Download as CSV
+          </MenuItem>
+        </Menu>
 
         {canAccess("resortList", "edit") && (
           <Button
@@ -459,7 +969,7 @@ const ListView = () => {
             sx={{
               borderRadius: "10px",
               textTransform: "none",
-              backgroundColor: "#1976d2",
+              backgroundColor: "#2e86de",
               color: "white",
               fontWeight: "bold",
               fontSize: "16px",
@@ -468,10 +978,7 @@ const ListView = () => {
               justifyContent: "center",
               padding: "8px 12px",
               height: "2.3rem",
-              width: "5rem",
-              "&:hover": {
-                backgroundColor: "#1e5dbd",
-              },
+              width: "5rem"
             }}
           >
             Add
@@ -479,8 +986,8 @@ const ListView = () => {
         )}
       </div>
 
-      <TableContainer component={Paper} sx={{ height: "75vh" }}>
-        <Table stickyHeader sx={{ width: "100%", tableLayout: "fixed" }}>
+      <TableContainer component={Paper} sx={{ height: "76.1vh" }}>
+        <Table stickyHeader sx={{ width: "100%", tableLayout: "fixed", }}>
           <TableHead>
             <TableRow>
               {[
@@ -521,6 +1028,7 @@ const ListView = () => {
                   colSpan={8}
                   align="center"
                   sx={{
+
                     fontSize: "16px",
                     color: "text.secondary",
                     fontStyle: "italic"
@@ -530,82 +1038,77 @@ const ListView = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              currentData.map((item, index) => (
-                <TableRow key={item.resort_id} hover sx={{ height: 64.8 }}>
-                  {/* No. */}
-                  <TableCell sx={getCellStyle(0)}>
-                    {index + 1}
-                  </TableCell>
+              currentData.map((item, index) => {
+                const sequentialNumber = (currentPage - 1) * itemsPerPage + index + 1;
 
-                  {/* Resort Name */}
-                  <TableCell sx={getCellStyle(1)}>
-                    <Tooltip title={item.resort_name || ""} arrow>
-                      <span>{truncateText(item.resort_name, 20)}</span>
-                    </Tooltip>
-                  </TableCell>
+                return (
+                  <TableRow key={item.resort_id} hover sx={{ height: 64.8 }}>
+                    <TableCell sx={getCellStyle(0)}>
+                      {sequentialNumber}
+                    </TableCell>
 
-                  {/* Category */}
-                  <TableCell sx={getCellStyle(2)}>
-                    {item.category}
-                  </TableCell>
+                    <TableCell sx={getCellStyle(1)}>
+                      <Tooltip title={item.resort_name || ""} arrow>
+                        <span>{truncateText(item.resort_name, 20)}</span>
+                      </Tooltip>
+                    </TableCell>
 
-                  {/* Island */}
-                  <TableCell sx={getCellStyle(3)}>
-                    <Tooltip title={item.island || ""} arrow>
-                      <span>{truncateText(item.island, 15)}</span>
-                    </Tooltip>
-                  </TableCell>
+                    <TableCell sx={getCellStyle(2)}>
+                      {item.category}
+                    </TableCell>
 
-                  {/* Contact Name */}
-                  <TableCell sx={getCellStyle(4)}>
-                    <Tooltip title={item.contact_details?.map(c => c.name).join(", ") || ""} arrow>
-                      <span>{truncateText(item.contact_details?.map(c => c.name).join(", "), 18)}</span>
-                    </Tooltip>
-                  </TableCell>
+                    <TableCell sx={getCellStyle(3)}>
+                      <Tooltip title={item.island || ""} arrow>
+                        <span>{truncateText(item.island, 15)}</span>
+                      </Tooltip>
+                    </TableCell>
 
-                  {/* Contact Email */}
-                  <TableCell sx={getCellStyle(5)}>
-                    <Tooltip title={item.contact_details?.map(c => c.email).join(", ") || ""} arrow>
-                      <span>{truncateText(item.contact_details?.map(c => c.email).join(", "), 22)}</span>
-                    </Tooltip>
-                  </TableCell>
+                    <TableCell sx={getCellStyle(4)}>
+                      <Tooltip title={item.contact_details?.map(c => c.name).join(", ") || ""} arrow>
+                        <span>{truncateText(item.contact_details?.map(c => c.name).join(", "), 18)}</span>
+                      </Tooltip>
+                    </TableCell>
 
-                  {/* Contact Phone */}
-                  <TableCell sx={getCellStyle(6)}>
-                    <Tooltip title={item.contact_details?.map(c => c.phone).join(", ") || ""} arrow>
-                      <span>{truncateText(item.contact_details?.map(c => c.phone).join(", "), 15)}</span>
-                    </Tooltip>
-                  </TableCell>
+                    <TableCell sx={getCellStyle(5)}>
+                      <Tooltip title={item.contact_details?.map(c => c.email).join(", ") || ""} arrow>
+                        <span>{truncateText(item.contact_details?.map(c => c.email).join(", "), 22)}</span>
+                      </Tooltip>
+                    </TableCell>
 
-                  {/* Actions */}
-                  <TableCell align="center" sx={{ width: "8%", padding: "8px 4px" }}>
-                    <IconButton onClick={(e) => handleOpenMenu(e, item.resort_id)}>
-                      <MoreVertIcon />
-                    </IconButton>
-                    <Menu
-                      anchorEl={anchorEl}
-                      open={openMenu && menuResortId === item.resort_id}
-                      onClose={handleCloseMenu}
-                      // ADDED: Close menu when clicked outside
-                      onClick={handleCloseMenu}
-                    >
-                      <MenuItem onClick={() => handleView(item)}>
-                        <VisibilityIcon fontSize="small" style={{ marginRight: 8, color: "#1976d2" }} /> View
-                      </MenuItem>
-                      {canAccess("resortList", "edit") && (
-                        <MenuItem onClick={() => handleEdit(item)}>
-                          <EditIcon fontSize="small" style={{ marginRight: 8, color: "#1976d2" }} /> Edit
+                    <TableCell sx={getCellStyle(6)}>
+                      <Tooltip title={item.contact_details?.map(c => c.phone).join(", ") || ""} arrow>
+                        <span>{truncateText(item.contact_details?.map(c => c.phone).join(", "), 15)}</span>
+                      </Tooltip>
+                    </TableCell>
+
+                    <TableCell align="center" sx={{ width: "8%", padding: "8px 4px" }}>
+                      <IconButton onClick={(e) => handleOpenMenu(e, item.resort_id)}>
+                        <MoreVertIcon />
+                      </IconButton>
+                      <Menu
+                        anchorEl={anchorEl}
+                        open={openMenu && menuResortId === item.resort_id}
+                        onClose={handleCloseMenu}
+                        onClick={handleCloseMenu}
+                      >
+                        <MenuItem onClick={() => handleView(item)}>
+                          <VisibilityIcon fontSize="small" style={{ marginRight: 8, color: "#1976d2" }} /> View
                         </MenuItem>
-                      )}
-                      {canAccess("resortList", "edit") && (
-                        <MenuItem onClick={() => handleDelete(item.resort_id)}>
-                          <DeleteIcon fontSize="small" style={{ marginRight: 8, color: "#fd0d0d" }} /> Delete
-                        </MenuItem>
-                      )}
-                    </Menu>
-                  </TableCell>
-                </TableRow>
-              ))
+                        {canAccess("resortList", "edit") && (
+                          <MenuItem onClick={() => handleEdit(item)}>
+                            <EditIcon fontSize="small" style={{ marginRight: 8, color: "#1976d2" }} /> Edit
+                          </MenuItem>
+                        )}
+                        {canAccess("resortList", "edit") && (
+                          <MenuItem onClick={() => handleDelete(item.resort_id)}>
+                            <DeleteIcon fontSize="small" style={{ marginRight: 8, color: "#fd0d0d" }} /> Delete
+                          </MenuItem>
+                        )}
+                      </Menu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

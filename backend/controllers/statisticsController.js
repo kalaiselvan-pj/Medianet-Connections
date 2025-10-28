@@ -280,20 +280,22 @@ export const getAllStreamers = async (req, res) => {
     // FIX: Get resort_name from req.query (query parameters in the URL)
     const { resort_id } = req.query;
 
-
     if (!resort_id) {
       // Optional: Return a 400 Bad Request if the required parameter is missing
       return res.status(400).json({ error: "Missing resort_id query parameter" });
     }
 
-    const { vertical, horizontal } = await statisticsService.getAllStreamers(resort_id);
+    // Destructure tsStreamer from the service response
+    const { vertical, horizontal, tsStreamer } = await statisticsService.getAllStreamers(resort_id);
 
-    res.json({ vertical, horizontal });
+    // Include tsStreamer in the response
+    res.json({ vertical, horizontal, tsStreamer });
   } catch (err) {
     console.error("Error in getStreamers controller:", err);
     res.status(500).json({ error: "Failed to fetch streamer data" });
   }
 };
+
 
 export const updateStreamer = async (req, res) => {
   try {

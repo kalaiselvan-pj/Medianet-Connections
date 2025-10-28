@@ -36,14 +36,14 @@ const ROLE_PERMISSIONS = {
         dashboard: { view: true, edit: false },
         resortList: { view: true, edit: false },
         resortIncidents: { view: false, edit: false },
-        streamerConfig: { view: false, edit: false },
+        streamerConfig: { view: true, edit: false },
         rbacManagement: { view: false, edit: false }, // Mostly view for sales-related data
     },
     technician: { // Added the missing technician role
         dashboard: { view: true, edit: false },
         resortList: { view: true, edit: false },
         resortIncidents: { view: true, edit: false },
-        streamerConfig: { view: true, edit: true },
+        streamerConfig: { view: true, edit: false },
         rbacManagement: { view: false, edit: false }, // Focus on incident/resort editing
     },
     // Fallback/Default structure for any new role

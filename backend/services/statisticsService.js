@@ -249,50 +249,75 @@ const getDashboardStats = async () => {
 const toMySQLDateTime = (date) => {
   if (!date) return null;
   const d = new Date(date);
-  const offset = d.getTimezoneOffset(); // in minutes
-  const localTime = new Date(d.getTime() - offset * 60000);
-  return localTime.toISOString().slice(0, 19).replace("T", " ");
+  return d.toISOString().slice(0, 19).replace("T", " ");
 };
 
 // --- Add Resort ---
 export const addResort = async (data) => {
-  const resort_id = uuidv4();
+  try {
+    const resort_id = uuidv4();
 
-  await db.query(
-    `INSERT INTO resort_list 
-     (resort_id, resort_name, category, island,
-      iptv_vendor, distribution_model, tvro_type, tvro_dish, 
-      staff_area_tv, guest_area_tv, horizontal_signal, vertical_signal, 
-      horizontal_link_margin, vertical_link_margin, signal_level_timestamp, 
-      contact_details, actions, survey_form, service_acceptance_form, 
-      dish_antena_image,  created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-    [
+    await db.query(
+      `INSERT INTO resort_list 
+       (resort_id, resort_name, category, island, it_person_name,
+        iptv_vendor, distribution_model, tvro_type, tvro_dish,dish_type,dish_brand,streamer_types,
+        transmodelator_ip,middleware_ip,username,password, 
+        staff_area_tv, guest_area_tv, horizontal_signal, vertical_signal, 
+        horizontal_link_margin, vertical_link_margin, signal_level_timestamp, 
+        contact_details, actions, survey_form, service_acceptance_form, 
+        dish_antena_image,  created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?,?,?,?,?,?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        resort_id,
+        data.resort_name || null,
+        data.category || null,
+        data.island || null,
+        data.it_person_name || null,
+        data.iptv_vendor || null,
+        data.distribution_model || null,
+        data.tvro_type || null,
+        data.tvro_dish || null,
+        data.dish_type || null,
+        data.dish_brand || null,
+        data.streamer_types || null,
+        data.transmodelator_ip || null,
+        data.middleware_ip || null,
+        data.username || null,
+        data.password || null,
+        data.staff_area_tv || null,
+        data.guest_area_tv || null,
+        data.horizontal_signal || null,
+        data.vertical_signal || null,
+        data.horizontal_link_margin || null,
+        data.vertical_link_margin || null,
+        data.signal_level_timestamp ? toMySQLDateTime(data.signal_level_timestamp) : null,
+        data.contact_details ? JSON.stringify(data.contact_details) : JSON.stringify([]),
+        data.actions || null,
+        data.survey_form || null,
+        data.service_acceptance_form || null,
+        data.dish_antena_image || null,
+      ]
+    );
+
+    return {
+      success: true,
       resort_id,
-      data.resort_name || null,
-      data.category || null,
-      data.island || null,
-      data.iptv_vendor || null,
-      data.distribution_model || null,
-      data.tvro_type || null,
-      data.tvro_dish || null,
-      data.staff_area_tv || null,
-      data.guest_area_tv || null,
-      data.horizontal_signal || null,
-      data.vertical_signal || null,
-      data.horizontal_link_margin || null,
-      data.vertical_link_margin || null,
-      data.signal_level_timestamp ? toMySQLDateTime(data.signal_level_timestamp) : null,
-      data.contact_details ? JSON.stringify(data.contact_details) : JSON.stringify([]),
-      data.actions || null,
-      data.survey_form || null,
-      data.service_acceptance_form || null,
-      data.dish_antena_image || null,
+      message: "Resort added successfully"
+    };
 
-    ]
-  );
+  } catch (error) {
+    console.error('Error adding resort:', error);
 
-  return { resort_id, message: "Resort added successfully" };
+    // Return structured error response
+    return {
+      success: false,
+      error: error.message,
+      message: "Failed to add resort"
+    };
+
+    // OR throw the error to be handled by the caller:
+    // throw new Error(`Failed to add resort: ${error.message}`);
+  }
 };
 
 //update resort Api
@@ -342,12 +367,13 @@ export const updateResort = async (resort_id, data) => {
   await db.query(
     `INSERT INTO resort_list 
      (resort_id, resort_name, category, island, 
-      iptv_vendor, distribution_model, tvro_type, tvro_dish, 
+      iptv_vendor, distribution_model, tvro_type, tvro_dish,dish_type,dish_brand,streamer_types,
+      transmodelator_ip,middleware_ip,username,password, 
       staff_area_tv, guest_area_tv, horizontal_signal, vertical_signal, 
       horizontal_link_margin, vertical_link_margin, signal_level_timestamp, 
       contact_details, actions, survey_form, service_acceptance_form, 
       dish_antena_image, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?,  ?, ?, ?, ?,  ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+     VALUES (?, ?, ?, ?, ?, ?, ?,  ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?,?,?,?,?,?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       newResortId,
       data.resort_name || null,
@@ -358,6 +384,13 @@ export const updateResort = async (resort_id, data) => {
       data.distribution_model || null,
       data.tvro_type || null,
       data.tvro_dish || null,
+      data.dish_type || null,
+      data.dish_brand || null,
+      data.streamer_types || null,
+      data.transmodelator_ip || null,
+      data.middleware_ip || null,
+      data.username || null,
+      data.password || null,
       data.staff_area_tv || null,
       data.guest_area_tv || null,
       data.horizontal_signal || null,
@@ -381,8 +414,6 @@ export const updateResort = async (resort_id, data) => {
    WHERE resort_id = ?`,
     [newResortId, resort_id]
   );
-
-
 
   return { newResortId, message: "Resort updated successfully" };
 };
@@ -561,7 +592,6 @@ const deleteResortIncident = async (incident_id) => {
   }
 };
 
-
 export const addStreamerConfig = async (data) => {
   if (!data) throw new Error("Request body is missing");
 
@@ -581,12 +611,13 @@ export const addStreamerConfig = async (data) => {
   const multicast_ip = JSON.stringify(ensureThreeChannels(data.multicast_ip));
   const port = JSON.stringify(ensureThreeChannels(data.port));
   const channel_name = JSON.stringify(ensureThreeChannels(data.channel_name));
+  const frequency = JSON.stringify(ensureThreeChannels(data.frequency));
 
   await db.query(
     `INSERT INTO streamer_config 
      (streamer_config_id, resort_id, signal_level, card, stb_no, vc_no, strm, 
-      mngmnt_ip, trfc_ip, multicast_ip, port, channel_name, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      mngmnt_ip, trfc_ip, multicast_ip, port, channel_name, frequency, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       streamer_config_id,
       data.resort_id || null,
@@ -599,7 +630,8 @@ export const addStreamerConfig = async (data) => {
       data.trfc_ip || null,
       multicast_ip,
       port,
-      channel_name
+      channel_name,
+      frequency
     ]
   );
 
@@ -609,7 +641,7 @@ export const addStreamerConfig = async (data) => {
 export const getAllStreamers = async (resortId = null) => {
   try {
     if (!resortId) {
-      return { vertical: [], horizontal: [] };
+      return { vertical: [], horizontal: [], tsStreamer: [] };
     }
 
     const query = `
@@ -621,17 +653,21 @@ export const getAllStreamers = async (resortId = null) => {
     const rows = await db.query(query, [resortId]);
 
     if (!rows || rows.length === 0) {
-      return { vertical: [], horizontal: [] };
+      return { vertical: [], horizontal: [], tsStreamer: [] };
     }
 
     const vertical = [];
     const horizontal = [];
+    const tsStreamer = [];
 
     const safeParseJSON = (value) => {
       if (!value) return [];
       try {
         if (Array.isArray(value)) return value;
-        if (typeof value === "string") return JSON.parse(value);
+        if (typeof value === "string") {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed : [];
+        }
         return [];
       } catch (error) {
         console.error('JSON parse error:', error, 'Value:', value);
@@ -639,63 +675,21 @@ export const getAllStreamers = async (resortId = null) => {
       }
     };
 
-    // Deep value extraction to handle nested structures
-    const deepExtractValue = (obj) => {
-      if (obj === null || obj === undefined) return '';
-
-      // If it's already a string or number
-      if (typeof obj === 'string' || typeof obj === 'number') {
-        return obj.toString();
-      }
-
-      // If it's an object, look for key property recursively
-      if (typeof obj === 'object') {
-        // If it has a direct key that's a string/number
-        if (obj.key && (typeof obj.key === 'string' || typeof obj.key === 'number')) {
-          return obj.key.toString();
-        }
-
-        // If it has nested key structure
-        if (obj.key && typeof obj.key === 'object') {
-          return deepExtractValue(obj.key);
-        }
-
-        // If it's an array (shouldn't happen here)
-        if (Array.isArray(obj)) {
-          return obj.map(deepExtractValue).join(', ');
-        }
-
-        // Last resort: try to stringify, but avoid [object Object]
-        try {
-          const str = obj.toString();
-          if (str !== '[object Object]') return str;
-        } catch (e) {
-          // Ignore
-        }
-
-        return '';
-      }
-
-      return obj.toString ? obj.toString() : '';
-    };
-
-    // Function to ensure exactly 3 channels in each array
     const ensureThreeChannels = (arr) => {
       const normalizedArray = [];
-
-      // Process existing items (up to 3)
       if (Array.isArray(arr)) {
         for (let i = 0; i < Math.min(arr.length, 3); i++) {
-          const value = deepExtractValue(arr[i]);
-          normalizedArray.push({ key: value });
+          const item = arr[i];
+          if (item && typeof item === 'object' && 'key' in item) {
+            normalizedArray.push({ key: item.key || '' });
+          } else {
+            normalizedArray.push({ key: item?.toString() || '' });
+          }
         }
       }
-
-      // Fill remaining slots with empty objects to make exactly 3
       while (normalizedArray.length < 3) {
         normalizedArray.push({ key: '' });
       }
-
       return normalizedArray;
     };
 
@@ -703,35 +697,44 @@ export const getAllStreamers = async (resortId = null) => {
       const channelName = safeParseJSON(row.channel_name);
       const multicastIp = safeParseJSON(row.multicast_ip);
       const port = safeParseJSON(row.port);
+      const frequency = safeParseJSON(row.frequency);
 
       const baseConfig = {
         streamer_config_id: row.streamer_config_id,
         resort_id: row.resort_id,
         signal_level: row.signal_level,
-        // Apply 3-channel structure to all arrays
         channel_name: ensureThreeChannels(channelName),
         multicast_ip: ensureThreeChannels(multicastIp),
         port: ensureThreeChannels(port),
+        frequency: ensureThreeChannels(frequency),
         stb_no: row.stb_no,
         vc_no: row.vc_no,
         trfc_ip: row.trfc_ip,
         mngmnt_ip: row.mngmnt_ip,
         strm: row.strm,
-        card: row.card
+        card: row.card,
+        created_at: row.created_at,
+        updated_at: row.updated_at
       };
 
       const level = (row.signal_level || "").toLowerCase();
-      if (level === "vertical") vertical.push(baseConfig);
-      else if (level === "horizontal") horizontal.push(baseConfig);
+
+      if (level === "vertical") {
+        vertical.push(baseConfig);
+      } else if (level === "horizontal") {
+        horizontal.push(baseConfig);
+      } else if (level === "ts streamer" || level === "ts_streamer") {
+        tsStreamer.push(baseConfig);
+      }
     });
 
-    return { vertical, horizontal };
+
+    return { vertical, horizontal, tsStreamer };
   } catch (err) {
     console.error("Error fetching streamer configuration:", err);
     throw err;
   }
 };
-
 
 export const updateStreamer = async (streamerConfigId, updateData) => {
   try {
