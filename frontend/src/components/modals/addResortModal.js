@@ -335,11 +335,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
   };
 
   const handleSaveNewContact = () => {
-    if (!newContact.name || !newContact.email || !newContact.phone || !newContact.designation) {
-      showToast("Please fill all contact fields", "error");
-      return;
-    }
-
+    // No validation - allow saving with empty fields
     const updatedContacts = [...contacts, newContact];
     setContacts(updatedContacts);
     setAdding(false);
@@ -350,12 +346,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
   const handleEditContact = (index) => setEditingIndex(index);
 
   const handleSaveEdit = (index) => {
-    const editedContact = contacts[index];
-    if (!editedContact.name || !editedContact.email || !editedContact.phone || !editedContact.designation) {
-      showToast("All contact fields are required", "error");
-      return;
-    }
-
+    // No validation - allow saving with empty fields
     setEditingIndex(null);
     showToast("Contact updated successfully!", "success");
   };
@@ -392,8 +383,9 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
 
   // Main save function
   const handleSaveResort = async () => {
-    if (!formData.resort_name || !formData.category || !formData.iptv_vendor || !formData.island) {
-      return showToast("Please fill all required fields", "error");
+    // Only check for resort_name as required field
+    if (!formData.resort_name) {
+      return showToast("Please fill resort name", "error");
     }
 
     const options = {
@@ -577,10 +569,11 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                 <TextField
                   fullWidth
                   size="small"
-                  label="Resort Name"
+                  label="Resort Name "
                   name="resort_name"
                   value={formData.resort_name}
                   onChange={handleChange}
+                  required
                 />
               </Grid>
 
@@ -831,9 +824,10 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                 updated[index].name = e.target.value;
                                 setContacts(updated);
                               }}
+                              placeholder="Name (optional)"
                             />
                           ) : (
-                            <Tooltip title={contact.name} arrow>
+                            <Tooltip title={contact.name || "Empty"} arrow>
                               <Typography
                                 sx={{
                                   overflow: "hidden",
@@ -842,7 +836,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                   maxWidth: "100%"
                                 }}
                               >
-                                {truncateText(contact.name, 15)}
+                                {truncateText(contact.name, 15) || "-"}
                               </Typography>
                             </Tooltip>
                           )}
@@ -860,9 +854,10 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                 updated[index].email = e.target.value;
                                 setContacts(updated);
                               }}
+                              placeholder="Email (optional)"
                             />
                           ) : (
-                            <Tooltip title={contact.email} arrow>
+                            <Tooltip title={contact.email || "Empty"} arrow>
                               <Typography
                                 sx={{
                                   overflow: "hidden",
@@ -871,7 +866,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                   maxWidth: "100%"
                                 }}
                               >
-                                {truncateText(contact.email, 20)}
+                                {truncateText(contact.email, 20) || "-"}
                               </Typography>
                             </Tooltip>
                           )}
@@ -889,9 +884,10 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                 updated[index].phone = e.target.value;
                                 setContacts(updated);
                               }}
+                              placeholder="Phone (optional)"
                             />
                           ) : (
-                            <Tooltip title={contact.phone} arrow>
+                            <Tooltip title={contact.phone || "Empty"} arrow>
                               <Typography
                                 sx={{
                                   overflow: "hidden",
@@ -900,7 +896,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                   maxWidth: "100%"
                                 }}
                               >
-                                {truncateText(contact.phone, 12)}
+                                {truncateText(contact.phone, 12) || "-"}
                               </Typography>
                             </Tooltip>
                           )}
@@ -917,9 +913,10 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                 updated[index].designation = e.target.value;
                                 setContacts(updated);
                               }}
+                              placeholder="Designation (optional)"
                             />
                           ) : (
-                            <Tooltip title={contact.designation} arrow>
+                            <Tooltip title={contact.designation || "Empty"} arrow>
                               <Typography
                                 sx={{
                                   overflow: "hidden",
@@ -928,7 +925,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                   maxWidth: "100%"
                                 }}
                               >
-                                {truncateText(contact.designation, 15)}
+                                {truncateText(contact.designation, 15) || "-"}
                               </Typography>
                             </Tooltip>
                           )}
@@ -981,7 +978,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           <TextField
                             fullWidth
                             size="small"
-                            placeholder="Name"
+                            placeholder="Name (optional)"
                             value={newContact.name}
                             onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
                           />
@@ -990,7 +987,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           <TextField
                             fullWidth
                             size="small"
-                            placeholder="Email"
+                            placeholder="Email (optional)"
                             value={newContact.email}
                             onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
                           />
@@ -999,7 +996,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           <TextField
                             fullWidth
                             size="small"
-                            placeholder="Phone"
+                            placeholder="Phone (optional)"
                             value={newContact.phone}
                             onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
                           />
@@ -1008,7 +1005,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           <TextField
                             fullWidth
                             size="small"
-                            placeholder="Designation"
+                            placeholder="Designation (optional)"
                             value={newContact.designation}
                             onChange={(e) => setNewContact({ ...newContact, designation: e.target.value })}
                           />

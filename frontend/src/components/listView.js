@@ -174,28 +174,7 @@ const ListView = () => {
   const medianetCount = tableData.filter((r) => r.category === "Medianet").length;
   const ooredooCount = tableData.filter((r) => r.category === "Ooredoo").length;
 
-  // UPDATED: Function to generate correct document download URLs for CSV
-  const generateDocumentLinks = (resort) => {
-    const baseUrl = process.env.REACT_APP_LOCALHOST;
-    const resortId = resort.resort_id;
-
-    const links = {
-      survey_form: resort.survey_form && resort.survey_form.data
-        ? `${baseUrl}/statistics/downloadDocument/survey_form/${resortId}`
-        : "Not Available",
-      service_acceptance_form: resort.service_acceptance_form && resort.service_acceptance_form.data
-        ? `${baseUrl}/statistics/downloadDocument/service_acceptance_form/${resortId}`
-        : "Not Available",
-      dish_antenna_image: resort.dish_antena_image && resort.dish_antena_image.data
-        ? `${baseUrl}/statistics/downloadDocument/dish_antenna_image/${resortId}`
-        : "Not Available",
-
-    };
-
-    return links;
-  };
-
-  // UPDATED CSV export function with proper URLs (not blob links)
+  // CSV export function - simplified without document links
   const exportToCSV = () => {
     const headers = [
       "No.",
@@ -230,8 +209,6 @@ const ListView = () => {
     };
 
     const rows = filteredData.map((item, index) => {
-      const documentLinks = generateDocumentLinks(item);
-
       return [
         index + 1,
         escapeCSV(item.resort_name),
@@ -264,254 +241,14 @@ const ListView = () => {
       [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const link = document.createElement("a");
     link.href = encodeURI(csvContent);
-    link.download = "resorts_list_with_documents.csv";
+    link.download = "resorts_list.csv";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("CSV with document links downloaded successfully!", "success");
+    showToast("CSV downloaded successfully!", "success");
   };
 
-  // // COMPLETELY UPDATED PDF export with proper layout management
-  // const exportToPDF = () => {
-  //   const doc = new jsPDF('portrait');
-
-  //   // Helper function to add new page if needed
-  //   const checkPageBreak = (requiredSpace = 20) => {
-  //     if (doc.internal.pageSize.height - doc.internal.getCursorY() < requiredSpace) {
-  //       doc.addPage('portrait');
-  //       return 20; // Return new Y position after page break
-  //     }
-  //     return doc.internal.getCursorY();
-  //   };
-
-  //   // Title for first page
-  //   doc.setFontSize(18);
-  //   doc.setTextColor(40, 40, 40);
-  //   doc.text("COMPLETE RESORT DETAILS REPORT", 105, 20, { align: "center" });
-
-  //   // Report info
-  //   doc.setFontSize(10);
-  //   doc.setTextColor(100, 100, 100);
-  //   doc.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 105, 30, { align: "center" });
-  //   doc.text(`Category Filter: ${filterCategory} | Search: ${searchTerm || "None"} | Total Records: ${filteredData.length}`, 105, 37, { align: "center" });
-
-  //   // Add each resort's data
-  //   filteredData.forEach((item, index) => {
-  //     if (index > 0) {
-  //       doc.addPage('portrait');
-  //     }
-
-  //     let yPosition = 50;
-
-  //     // Resort header
-  //     doc.setFillColor(86, 159, 223);
-  //     doc.rect(14, yPosition, 182, 12, 'F');
-  //     doc.setFontSize(14);
-  //     doc.setFont(undefined, 'bold');
-  //     doc.setTextColor(255, 255, 255);
-  //     doc.text(`RESORT ${index + 1}: ${item.resort_name || "N/A"}`, 105, yPosition + 8, { align: "center" });
-
-  //     yPosition += 20;
-
-  //     // Basic Information Section - Two Column Layout
-  //     doc.setFontSize(12);
-  //     doc.setFont(undefined, 'bold');
-  //     doc.setTextColor(86, 159, 223);
-  //     doc.text("BASIC INFORMATION", 14, yPosition);
-  //     yPosition += 8;
-
-  //     doc.setFontSize(10);
-  //     doc.setFont(undefined, 'normal');
-  //     doc.setTextColor(0, 0, 0);
-
-  //     // Left column
-  //     doc.text(`• Category: ${item.category || "N/A"}`, 20, yPosition);
-  //     doc.text(`• Island: ${item.island || "N/A"}`, 20, yPosition + 7);
-  //     doc.text(`• IPTV Vendor: ${item.iptv_vendor || "N/A"}`, 20, yPosition + 14);
-  //     doc.text(`• Distribution Model: ${item.distribution_model || "N/A"}`, 20, yPosition + 21);
-
-  //     // Right column
-  //     doc.text(`• TVRO Type: ${item.tvro_type || "N/A"}`, 110, yPosition);
-  //     doc.text(`• TVRO Dish: ${item.tvro_dish || "N/A"}`, 110, yPosition + 7);
-  //     doc.text(`• Dish Type: ${item.dish_type || "N/A"}`, 110, yPosition + 14);
-  //     doc.text(`• Dish Brand: ${item.dish_brand || "N/A"}`, 110, yPosition + 21);
-
-  //     yPosition += 35;
-
-  //     // TV Counts
-  //     doc.text(`• Staff Area TVs: ${item.staff_area_tv || "N/A"}`, 20, yPosition);
-  //     doc.text(`• Guest Area TVs: ${item.guest_area_tv || "N/A"}`, 110, yPosition);
-
-  //     yPosition += 15;
-
-  //     // Check page break before next section
-  //     yPosition = checkPageBreak(30);
-
-  //     // Streamer and Network Information Section
-  //     const hasStreamerInfo = item.streamer_types || item.transmodelator_ip || item.middleware_ip || item.username || item.password;
-  //     if (hasStreamerInfo) {
-  //       doc.setFont(undefined, 'bold');
-  //       doc.setTextColor(86, 159, 223);
-  //       doc.text("STREAMER & NETWORK INFORMATION", 14, yPosition);
-  //       yPosition += 8;
-
-  //       doc.setFont(undefined, 'normal');
-  //       doc.setTextColor(0, 0, 0);
-
-  //       if (item.streamer_types) {
-  //         doc.text(`• Streamer Types: ${item.streamer_types}`, 20, yPosition);
-  //         yPosition += 7;
-  //       }
-  //       if (item.transmodelator_ip) {
-  //         doc.text(`• Transmodulator IP: ${item.transmodelator_ip}`, 20, yPosition);
-  //         yPosition += 7;
-  //       }
-  //       if (item.middleware_ip) {
-  //         doc.text(`• Middleware IP: ${item.middleware_ip}`, 20, yPosition);
-  //         yPosition += 7;
-  //       }
-  //       if (item.username) {
-  //         doc.text(`• Username: ${item.username}`, 20, yPosition);
-  //         yPosition += 7;
-  //       }
-  //       if (item.password) {
-  //         doc.text(`• Password: ${item.password}`, 20, yPosition);
-  //         yPosition += 7;
-  //       }
-
-  //       yPosition += 5;
-  //       yPosition = checkPageBreak(30);
-  //     }
-
-  //     // Signal Information Section
-  //     if (item.category === "Medianet") {
-  //       doc.setFont(undefined, 'bold');
-  //       doc.setTextColor(86, 159, 223);
-  //       doc.text("SIGNAL INFORMATION", 14, yPosition);
-  //       yPosition += 8;
-
-  //       doc.setFont(undefined, 'normal');
-  //       doc.setTextColor(0, 0, 0);
-
-  //       // Two column layout for signal info
-  //       doc.text(`• Horizontal Signal: ${item.horizontal_signal || "N/A"}`, 20, yPosition);
-  //       doc.text(`• Vertical Signal: ${item.vertical_signal || "N/A"}`, 110, yPosition);
-  //       doc.text(`• Horizontal Link Margin: ${item.horizontal_link_margin || "N/A"}`, 20, yPosition + 7);
-  //       doc.text(`• Vertical Link Margin: ${item.vertical_link_margin || "N/A"}`, 110, yPosition + 7);
-
-  //       if (item.signal_level_timestamp) {
-  //         doc.text(`• Signal Timestamp: ${item.signal_level_timestamp}`, 20, yPosition + 14);
-  //         yPosition += 21;
-  //       } else {
-  //         yPosition += 14;
-  //       }
-
-  //       yPosition = checkPageBreak(40);
-  //     }
-
-  //     // Contact Details Section - PROPERLY STRUCTURED
-  //     doc.setFont(undefined, 'bold');
-  //     doc.setTextColor(86, 159, 223);
-  //     doc.text("CONTACT DETAILS", 14, yPosition);
-  //     yPosition += 8;
-
-  //     if (item.contact_details && item.contact_details.length > 0) {
-  //       doc.setFont(undefined, 'normal');
-  //       doc.setTextColor(0, 0, 0);
-
-  //       item.contact_details.forEach((contact, contactIndex) => {
-  //         // Check if we need a new page for this contact
-  //         yPosition = checkPageBreak(25);
-
-  //         doc.setFont(undefined, 'bold');
-  //         doc.text(`Contact ${contactIndex + 1}:`, 20, yPosition);
-  //         doc.setFont(undefined, 'normal');
-
-  //         doc.text(`  Name: ${contact.name || "N/A"}`, 25, yPosition + 5);
-  //         doc.text(`  Designation: ${contact.designation || "N/A"}`, 25, yPosition + 10);
-  //         doc.text(`  Email: ${contact.email || "N/A"}`, 25, yPosition + 15);
-  //         doc.text(`  Phone: ${contact.phone || "N/A"}`, 25, yPosition + 20);
-
-  //         yPosition += 28;
-  //       });
-  //     } else {
-  //       doc.setFont(undefined, 'normal');
-  //       doc.setTextColor(0, 0, 0);
-  //       doc.text("No contact details available", 20, yPosition);
-  //       yPosition += 15;
-  //     }
-
-  //     yPosition = checkPageBreak(30);
-
-  //     // Document Availability Section
-  //     doc.setFont(undefined, 'bold');
-  //     doc.setTextColor(86, 159, 223);
-  //     doc.text("DOCUMENT AVAILABILITY", 14, yPosition);
-  //     yPosition += 8;
-
-  //     const documentLinks = generateDocumentLinks(item);
-  //     let docsY = yPosition;
-
-  //     // Function to add document entry
-  //     const addDocumentEntry = (text, available, yPos) => {
-  //       if (available) {
-  //         doc.setTextColor(0, 0, 255);
-  //         doc.text(text, 20, yPos);
-  //         // Note: PDF links would be implemented here if needed
-  //       } else {
-  //         doc.setTextColor(128, 0, 0);
-  //         doc.text(text, 20, yPos);
-  //       }
-  //       return yPos + 6;
-  //     };
-
-  //     // Reset text color
-  //     doc.setTextColor(0, 0, 0);
-
-  //     // Add note about links
-  //     doc.setFontSize(8);
-  //     doc.setTextColor(100, 100, 100);
-  //     doc.text("* Documents can be accessed via the web application", 20, docsY + 5);
-  //     doc.setFontSize(10);
-
-  //     // Additional Notes Section
-  //     const additionalFields = [
-  //       { label: 'LNB Type', value: item.lnb_type },
-  //       { label: 'Modulation', value: item.modulation },
-  //       { label: 'Frequency', value: item.frequency },
-  //       { label: 'Symbol Rate', value: item.symbol_rate },
-  //       { label: 'Polarization', value: item.polarization }
-  //     ].filter(field => field.value);
-
-  //     if (additionalFields.length > 0) {
-  //       yPosition = checkPageBreak(30);
-
-  //       doc.setFont(undefined, 'bold');
-  //       doc.setTextColor(86, 159, 223);
-  //       doc.text("ADDITIONAL INFORMATION", 14, yPosition);
-  //       yPosition += 8;
-
-  //       doc.setFont(undefined, 'normal');
-  //       doc.setTextColor(0, 0, 0);
-
-  //       additionalFields.forEach(field => {
-  //         yPosition = checkPageBreak(10);
-  //         doc.text(`• ${field.label}: ${field.value}`, 20, yPosition);
-  //         yPosition += 6;
-  //       });
-  //     }
-
-  //     // Page footer
-  //     doc.setFontSize(8);
-  //     doc.setTextColor(150, 150, 150);
-  //     doc.text(`Page ${index + 1} of ${filteredData.length}`, 105, 290, { align: "center" });
-  //   });
-
-  //   // Save PDF
-  //   doc.save(`complete_resort_details_${new Date().toISOString().split('T')[0]}.pdf`);
-  //   showToast("Complete resort details PDF downloaded successfully!", "success");
-  // };
-  // COMPLETELY UPDATED PDF export with proper layout management
+  // PDF export function - simplified without document section
   const exportToPDF = () => {
     const doc = new jsPDF('portrait');
 
@@ -682,64 +419,6 @@ const ListView = () => {
         yPosition += 15;
       }
 
-      yPosition = checkPageBreak(yPosition, 30);
-
-      // Document Availability Section
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(86, 159, 223);
-      doc.text("DOCUMENT AVAILABILITY", 14, yPosition);
-      yPosition += 8;
-
-      const documentLinks = generateDocumentLinks(item);
-
-      // Document entries
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(0, 0, 0);
-
-      // Survey Form
-      if (documentLinks.survey_form !== "Not Available") {
-        doc.setTextColor(0, 0, 255);
-        doc.text("• Survey Form: Available (click in application)", 20, yPosition);
-      } else {
-        doc.setTextColor(128, 0, 0);
-        doc.text("• Survey Form: Not Available", 20, yPosition);
-      }
-      yPosition += 6;
-
-      // Service Acceptance Form
-      if (documentLinks.service_acceptance_form !== "Not Available") {
-        doc.setTextColor(0, 0, 255);
-        doc.text("• Service Acceptance Form: Available (click in application)", 20, yPosition);
-      } else {
-        doc.setTextColor(128, 0, 0);
-        doc.text("• Service Acceptance Form: Not Available", 20, yPosition);
-      }
-      yPosition += 6;
-
-      // Dish Antenna Image
-      if (documentLinks.dish_antenna_image !== "Not Available") {
-        doc.setTextColor(0, 0, 255);
-        doc.text("• Dish Antenna Image: Available (click in application)", 20, yPosition);
-      } else {
-        doc.setTextColor(128, 0, 0);
-        doc.text("• Dish Antenna Image: Not Available", 20, yPosition);
-      }
-      yPosition += 6;
-
-
-
-
-      // Reset text color
-      doc.setTextColor(0, 0, 0);
-
-      // Add note about links
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      doc.text("* Documents can be accessed via the web application", 20, yPosition);
-      doc.setFontSize(10);
-      yPosition += 8;
-
       // Additional Notes Section
       const additionalFields = [
         { label: 'LNB Type', value: item.lnb_type },
@@ -774,8 +453,8 @@ const ListView = () => {
     });
 
     // Save PDF
-    doc.save(`complete_resort_details_${new Date().toISOString().split('T')[0]}.pdf`);
-    showToast("Complete resort details PDF downloaded successfully!", "success");
+    doc.save(`resort_details_${new Date().toISOString().split('T')[0]}.pdf`);
+    showToast("Resort details PDF downloaded successfully!", "success");
   };
 
   const handleOpenDownloadMenu = (event) => {

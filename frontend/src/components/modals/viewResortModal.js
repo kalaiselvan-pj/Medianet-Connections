@@ -243,7 +243,7 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
 
                                             {/* IPTV Vendor */}
                                             <TextField
-                                                label="IPTV Vendor"
+                                                label="IPTV/Analog"
                                                 value={viewResort.iptv_vendor || ""}
                                                 fullWidth
                                                 size="small"
@@ -479,7 +479,7 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                                                 }}
                                             />
                                             <TextField
-                                                label="TVRO Dish"
+                                                label=" Dish Antenna Size"
                                                 value={viewResort.tvro_dish || ""}
                                                 fullWidth
                                                 size="small"
