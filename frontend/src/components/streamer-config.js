@@ -36,10 +36,12 @@ import { canAccess } from '../rbac/canAccess';
 function StreamerConfigTable() {
     const [verticalData, setVerticalData] = useState([]);
     const [horizontalData, setHorizontalData] = useState([]);
+    const [tsStreamerData, setTsStreamerData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [resorts, setResorts] = useState([]);
     const [selectedResort, setSelectedResort] = useState(null);
+    const [streamerType, setStreamerType] = useState('');
     const [dataLoaded, setDataLoaded] = useState(false);
 
     // Edit state management
@@ -51,11 +53,13 @@ function StreamerConfigTable() {
     // Add state management
     const [addingVertical, setAddingVertical] = useState(false);
     const [addingHorizontal, setAddingHorizontal] = useState(false);
+    const [addingTs, setAddingTs] = useState(false);
     const [newConfigData, setNewConfigData] = useState([
         {
             channel_name: '',
             multicast_ip: '',
             port: '',
+            frequency: '',
             stb_no: '',
             vc_no: '',
             trfc_ip: '',
@@ -67,6 +71,7 @@ function StreamerConfigTable() {
             channel_name: '',
             multicast_ip: '',
             port: '',
+            frequency: '',
             stb_no: '',
             vc_no: '',
             trfc_ip: '',
@@ -78,6 +83,7 @@ function StreamerConfigTable() {
             channel_name: '',
             multicast_ip: '',
             port: '',
+            frequency: '',
             stb_no: '',
             vc_no: '',
             trfc_ip: '',
@@ -99,12 +105,13 @@ function StreamerConfigTable() {
             .catch(err => console.error(err));
     }, []);
 
-    // Fetch data from backend API based on resort filter
+    // Fetch data from backend API based on resort filter and streamer type
     useEffect(() => {
         const fetchStreamers = async () => {
-            if (!selectedResort) {
+            if (!selectedResort || !streamerType) {
                 setVerticalData([]);
                 setHorizontalData([]);
+                setTsStreamerData([]);
                 setDataLoaded(false);
                 return;
             }
@@ -113,7 +120,7 @@ function StreamerConfigTable() {
                 setLoading(true);
                 setError(null);
 
-                const url = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_id=${encodeURIComponent(selectedResort.resort_id)}`;
+                const url = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_id=${encodeURIComponent(selectedResort.resort_id)}&streamer_type=${encodeURIComponent(streamerType)}`;
 
                 const response = await fetch(url, {
                     method: 'GET',
@@ -126,6 +133,7 @@ function StreamerConfigTable() {
                 const data = await response.json();
                 setVerticalData(data.vertical || []);
                 setHorizontalData(data.horizontal || []);
+                setTsStreamerData(data.tsStreamer || []);
                 setDataLoaded(true);
             } catch (err) {
                 setError(err.message);
@@ -137,14 +145,26 @@ function StreamerConfigTable() {
         };
 
         fetchStreamers();
-    }, [selectedResort]);
+    }, [selectedResort, streamerType]);
 
     // Handle resort filter change
     const handleResortChange = (event, newValue) => {
         setSelectedResort(newValue || null);
+        if (newValue) {
+            // Automatically set streamer type from resort data
+            setStreamerType(newValue.streamer_types || '');
+        } else {
+            setStreamerType('');
+        }
         setEditingRow(null);
         setAddingVertical(false);
         setAddingHorizontal(false);
+        setAddingTs(false);
+    };
+
+    // Handle streamer type change
+    const handleStreamerTypeChange = (event) => {
+        setStreamerType(event.target.value);
     };
 
     // Safe value extraction helper
@@ -164,7 +184,7 @@ function StreamerConfigTable() {
         return '';
     };
 
-    // Updated transformDataToTableRows function
+    // Updated transformDataToTableRows function with frequency support
     const transformDataToTableRows = (apiData, signalLevel) => {
         if (!apiData || apiData.length === 0) return [];
 
@@ -178,6 +198,7 @@ function StreamerConfigTable() {
                 const channelName = extractSafeValue(config.channel_name?.[i]);
                 const multicastIp = extractSafeValue(config.multicast_ip?.[i]);
                 const port = extractSafeValue(config.port?.[i]);
+                const frequency = extractSafeValue(config.frequency?.[i]);
 
                 tableRows.push({
                     id: `${config.streamer_config_id}-${i}-${signalLevel}`,
@@ -188,6 +209,7 @@ function StreamerConfigTable() {
                     channel_name: channelName,
                     multicast_ip: multicastIp,
                     port: port,
+                    frequency: frequency,
                     stb_no: i === 0 ? extractSafeValue(config.stb_no) : '',
                     vc_no: i === 0 ? extractSafeValue(config.vc_no) : '',
                     trfc_ip: i === 0 ? extractSafeValue(config.trfc_ip) : '',
@@ -213,8 +235,15 @@ function StreamerConfigTable() {
         return tableRows;
     };
 
-    // Combine vertical and horizontal data with section headers
+    // Combine vertical, horizontal and tsStreamer data with section headers
     const getAllTableRows = () => {
+        // For TS Streamer, use tsStreamerData
+        if (streamerType === 'TS Streamer') {
+            const tsRows = transformDataToTableRows(tsStreamerData, 'ts');
+            return tsRows;
+        }
+
+        // For other streamer types, keep the original vertical/horizontal structure
         const verticalRows = transformDataToTableRows(verticalData, 'vertical');
         const horizontalRows = transformDataToTableRows(horizontalData, 'horizontal');
 
@@ -243,26 +272,31 @@ function StreamerConfigTable() {
 
     // Add new configuration functions
     const handleAddClick = (section) => {
-        if (section === 'vertical') {
-            setAddingVertical(true);
+        if (streamerType === 'TS Streamer') {
+            setAddingTs(true);
         } else {
-            setAddingHorizontal(true);
+            if (section === 'vertical') {
+                setAddingVertical(true);
+            } else {
+                setAddingHorizontal(true);
+            }
         }
 
         setNewConfigData([
-            { channel_name: '', multicast_ip: '', port: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
-            { channel_name: '', multicast_ip: '', port: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
-            { channel_name: '', multicast_ip: '', port: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' }
+            { channel_name: '', multicast_ip: '', port: '', frequency: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
+            { channel_name: '', multicast_ip: '', port: '', frequency: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
+            { channel_name: '', multicast_ip: '', port: '', frequency: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' }
         ]);
     };
 
     const handleAddCancel = () => {
         setAddingVertical(false);
         setAddingHorizontal(false);
+        setAddingTs(false);
         setNewConfigData([
-            { channel_name: '', multicast_ip: '', port: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
-            { channel_name: '', multicast_ip: '', port: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
-            { channel_name: '', multicast_ip: '', port: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' }
+            { channel_name: '', multicast_ip: '', port: '', frequency: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
+            { channel_name: '', multicast_ip: '', port: '', frequency: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' },
+            { channel_name: '', multicast_ip: '', port: '', frequency: '', stb_no: '', vc_no: '', trfc_ip: '', mngmnt_ip: '', strm: '', card: '' }
         ]);
     };
 
@@ -270,24 +304,31 @@ function StreamerConfigTable() {
         try {
             setSaving(true);
 
-            const signalLevel = addingVertical ? 'vertical' : 'horizontal';
+            let signalLevel = '';
+            if (streamerType === 'TS Streamer') {
+                signalLevel = 'TS Streamer';
+            } else {
+                signalLevel = addingVertical ? 'vertical' : 'horizontal';
+            }
 
             const channel_name = newConfigData.map(row => ({ key: row.channel_name || '' }));
             const multicast_ip = newConfigData.map(row => ({ key: row.multicast_ip || '' }));
             const port = newConfigData.map(row => ({ key: row.port || '' }));
+            const frequency = newConfigData.map(row => ({ key: row.frequency || '' }));
 
             const payload = {
                 resort_id: selectedResort.resort_id,
                 channel_name: channel_name,
                 multicast_ip: multicast_ip,
                 port: port,
+                frequency: frequency,
                 stb_no: newConfigData[0].stb_no,
                 vc_no: newConfigData[0].vc_no,
                 trfc_ip: newConfigData[0].trfc_ip,
                 mngmnt_ip: newConfigData[0].mngmnt_ip,
                 strm: newConfigData[0].strm,
                 card: newConfigData[0].card,
-                signal_level: signalLevel
+                signal_level: signalLevel,
             };
 
             const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/addStreamerConfig`, {
@@ -305,11 +346,12 @@ function StreamerConfigTable() {
 
             await response.json();
 
-            const url = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_id=${encodeURIComponent(selectedResort.resort_id)}`;
+            const url = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_id=${encodeURIComponent(selectedResort.resort_id)}&streamer_type=${encodeURIComponent(streamerType)}`;
             const refreshResponse = await fetch(url);
             const data = await refreshResponse.json();
             setVerticalData(data.vertical || []);
             setHorizontalData(data.horizontal || []);
+            setTsStreamerData(data.tsStreamer || []);
 
             handleAddCancel();
             showToast('Streamer configuration added successfully!');
@@ -347,13 +389,18 @@ function StreamerConfigTable() {
     const handleEditClick = (row) => {
         setEditingRow(row.id);
 
-        const currentData = row.signal_level === 'vertical' ? verticalData : horizontalData;
+        // For TS Streamer, use tsStreamerData
+        const currentData = streamerType === 'TS Streamer'
+            ? tsStreamerData
+            : (row.signal_level === 'vertical' ? verticalData : horizontalData);
+
         const originalConfig = currentData[row.configIndex];
 
         const formData = {
             channel_name: row.channel_name,
             multicast_ip: row.multicast_ip,
             port: row.port,
+            frequency: row.frequency,
             stb_no: row.stb_no,
             vc_no: row.vc_no,
             trfc_ip: row.trfc_ip,
@@ -379,8 +426,15 @@ function StreamerConfigTable() {
         try {
             setSaving(true);
 
-            const currentData = row.signal_level === 'vertical' ? verticalData : horizontalData;
-            const setDataFunction = row.signal_level === 'vertical' ? setVerticalData : setHorizontalData;
+            // For TS Streamer, use tsStreamerData
+            const currentData = streamerType === 'TS Streamer'
+                ? tsStreamerData
+                : (row.signal_level === 'vertical' ? verticalData : horizontalData);
+
+            const setDataFunction = streamerType === 'TS Streamer'
+                ? setTsStreamerData
+                : (row.signal_level === 'vertical' ? setVerticalData : setHorizontalData);
+
             const configToUpdate = currentData[row.configIndex];
 
             if (!configToUpdate) {
@@ -408,6 +462,15 @@ function StreamerConfigTable() {
                 updatedConfig.port.push({ key: editFormData.port });
             }
 
+            // Update frequency for TS Streamer
+            if (streamerType === 'TS Streamer') {
+                if (row.channelIndex < updatedConfig.frequency.length) {
+                    updatedConfig.frequency[row.channelIndex].key = editFormData.frequency;
+                } else {
+                    updatedConfig.frequency.push({ key: editFormData.frequency });
+                }
+            }
+
             // Update config-wide fields
             if (row.channelIndex === 0) {
                 updatedConfig.stb_no = editFormData.stb_no;
@@ -423,13 +486,14 @@ function StreamerConfigTable() {
                 channel_name: updatedConfig.channel_name,
                 multicast_ip: updatedConfig.multicast_ip,
                 port: updatedConfig.port,
+                frequency: updatedConfig.frequency,
                 stb_no: updatedConfig.stb_no,
                 vc_no: updatedConfig.vc_no,
                 trfc_ip: updatedConfig.trfc_ip,
                 mngmnt_ip: updatedConfig.mngmnt_ip,
                 strm: updatedConfig.strm,
                 card: updatedConfig.card,
-                signal_level: updatedConfig.signal_level
+                signal_level: updatedConfig.signal_level,
             };
 
             const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/updateStreamerConfig/${row.streamer_config_id}`, {
@@ -478,9 +542,15 @@ function StreamerConfigTable() {
             setSaving(true);
 
             const row = selectedRowToDelete;
-            const signalLevel = row.signal_level;
-            const currentData = signalLevel === 'vertical' ? verticalData : horizontalData;
-            const setDataFunction = signalLevel === 'vertical' ? setVerticalData : setHorizontalData;
+
+            // For TS Streamer, use tsStreamerData
+            const currentData = streamerType === 'TS Streamer'
+                ? tsStreamerData
+                : (row.signal_level === 'vertical' ? verticalData : horizontalData);
+
+            const setDataFunction = streamerType === 'TS Streamer'
+                ? setTsStreamerData
+                : (row.signal_level === 'vertical' ? setVerticalData : setHorizontalData);
 
             const configIndex = row.configIndex;
             const configToDeleteFrom = currentData[configIndex];
@@ -492,8 +562,15 @@ function StreamerConfigTable() {
                     const channelName = extractSafeValue(configToDeleteFrom.channel_name?.[i]);
                     const multicastIp = extractSafeValue(configToDeleteFrom.multicast_ip?.[i]);
                     const port = extractSafeValue(configToDeleteFrom.port?.[i]);
+                    const frequency = streamerType === 'TS Streamer' ? extractSafeValue(configToDeleteFrom.frequency?.[i]) : '';
 
-                    if (channelName.trim() !== '' || multicastIp.trim() !== '' || port.trim() !== '') {
+                    // Check if this row has any data in the key fields
+                    const hasData = channelName.trim() !== '' ||
+                        multicastIp.trim() !== '' ||
+                        port.trim() !== '' ||
+                        (streamerType === 'TS Streamer' && frequency.trim() !== '');
+
+                    if (hasData) {
                         count++;
                     }
                 }
@@ -502,68 +579,56 @@ function StreamerConfigTable() {
 
             const nonEmptyRowCount = countNonEmptyRows();
 
-            // If there's only one non-empty row, delete entire configuration
-            if (nonEmptyRowCount <= 1) {
-                const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/deleteStreamerConfig/${row.streamer_config_id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ channel_index: row.channelIndex })
-                });
+            // If there's only one non-empty row AND that row is the one we're trying to delete, 
+            // then delete entire configuration
+            if (nonEmptyRowCount === 1) {
+                // Check if the row we're deleting is the only non-empty row
+                const rowToDeleteHasData = () => {
+                    const channelName = extractSafeValue(configToDeleteFrom.channel_name?.[row.channelIndex]);
+                    const multicastIp = extractSafeValue(configToDeleteFrom.multicast_ip?.[row.channelIndex]);
+                    const port = extractSafeValue(configToDeleteFrom.port?.[row.channelIndex]);
+                    const frequency = streamerType === 'TS Streamer' ? extractSafeValue(configToDeleteFrom.frequency?.[row.channelIndex]) : '';
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-                }
-
-                await response.json();
-
-                const refreshUrl = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_id=${encodeURIComponent(selectedResort.resort_id)}`;
-                const refreshResponse = await fetch(refreshUrl);
-                const data = await refreshResponse.json();
-                setVerticalData(data.vertical || []);
-                setHorizontalData(data.horizontal || []);
-
-                showToast('Configuration deleted successfully!');
-            } else {
-                // If there are 2 or 3 rows, delete only the selected row and generate empty row
-                const payload = {
-                    channel_index: row.channelIndex
+                    return channelName.trim() !== '' ||
+                        multicastIp.trim() !== '' ||
+                        port.trim() !== '' ||
+                        (streamerType === 'TS Streamer' && frequency.trim() !== '');
                 };
 
-                const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/deleteStreamerConfig/${row.streamer_config_id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload)
-                });
+                if (rowToDeleteHasData()) {
+                    // This is the only non-empty row, delete entire configuration
+                    const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/deleteStreamerConfig/${row.streamer_config_id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                        // No body needed for entire config deletion
+                    });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                    }
+
+                    await response.json();
+
+                    // Refresh data
+                    const refreshUrl = `${process.env.REACT_APP_LOCALHOST}/statistics/getAllStreamerConfig?resort_id=${encodeURIComponent(selectedResort.resort_id)}&streamer_type=${encodeURIComponent(streamerType)}`;
+                    const refreshResponse = await fetch(refreshUrl);
+                    const data = await refreshResponse.json();
+                    setVerticalData(data.vertical || []);
+                    setHorizontalData(data.horizontal || []);
+                    setTsStreamerData(data.tsStreamer || []);
+
+                    showToast('Configuration deleted successfully!');
+                } else {
+                    // The row we're deleting is empty, but there's another non-empty row
+                    // This shouldn't normally happen, but handle it by deleting just the channel
+                    await deleteSingleChannel(row, configToDeleteFrom, currentData, setDataFunction);
                 }
-
-                await response.json();
-
-                const updatedData = [...currentData];
-                const updatedConfig = JSON.parse(JSON.stringify(configToDeleteFrom));
-
-                // Remove the selected channel
-                updatedConfig.channel_name.splice(row.channelIndex, 1);
-                updatedConfig.multicast_ip.splice(row.channelIndex, 1);
-                updatedConfig.port.splice(row.channelIndex, 1);
-
-                // Add empty row to maintain structure (always ensure we have empty rows)
-                updatedConfig.channel_name.push({ key: '' });
-                updatedConfig.multicast_ip.push({ key: '' });
-                updatedConfig.port.push({ key: '' });
-
-                updatedData[configIndex] = updatedConfig;
-                setDataFunction(updatedData);
-
-                showToast('Channel deleted successfully!');
+            } else {
+                // If there are 2 or 3 non-empty rows, delete only the selected channel
+                await deleteSingleChannel(row, configToDeleteFrom, currentData, setDataFunction);
             }
 
             setOpenDeleteDialog(false);
@@ -576,6 +641,112 @@ function StreamerConfigTable() {
             setSaving(false);
         }
     };
+
+    // Helper function to delete a single channel
+    const deleteSingleChannel = async (row, configToDeleteFrom, currentData, setDataFunction) => {
+        if (streamerType === 'TS Streamer') {
+            // For TS Streamer, use update endpoint to remove the channel and frequency
+            const updatedData = [...currentData];
+            const updatedConfig = JSON.parse(JSON.stringify(configToDeleteFrom));
+
+            // Remove the selected channel
+            updatedConfig.channel_name.splice(row.channelIndex, 1);
+            updatedConfig.multicast_ip.splice(row.channelIndex, 1);
+            updatedConfig.port.splice(row.channelIndex, 1);
+            updatedConfig.frequency.splice(row.channelIndex, 1);
+
+            // Add empty row to maintain structure (always ensure we have 3 rows)
+            const currentRowCount = updatedConfig.channel_name.length;
+            const rowsToAdd = 3 - currentRowCount;
+
+            for (let i = 0; i < rowsToAdd; i++) {
+                updatedConfig.channel_name.push({ key: '' });
+                updatedConfig.multicast_ip.push({ key: '' });
+                updatedConfig.port.push({ key: '' });
+                updatedConfig.frequency.push({ key: '' });
+            }
+
+            // Prepare update payload
+            const updatePayload = {
+                resort_id: selectedResort.resort_id,
+                channel_name: updatedConfig.channel_name,
+                multicast_ip: updatedConfig.multicast_ip,
+                port: updatedConfig.port,
+                frequency: updatedConfig.frequency,
+                stb_no: updatedConfig.stb_no,
+                vc_no: updatedConfig.vc_no,
+                trfc_ip: updatedConfig.trfc_ip,
+                mngmnt_ip: updatedConfig.mngmnt_ip,
+                strm: updatedConfig.strm,
+                card: updatedConfig.card,
+                signal_level: updatedConfig.signal_level,
+            };
+
+            const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/updateStreamerConfig/${row.streamer_config_id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updatePayload),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            }
+
+            await response.json();
+
+            updatedData[row.configIndex] = updatedConfig;
+            setDataFunction(updatedData);
+
+            showToast('Channel deleted successfully!');
+        } else {
+            // For non-TS Streamer, use the delete endpoint as before
+            const payload = {
+                channel_index: row.channelIndex
+            };
+
+            const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/deleteStreamerConfig/${row.streamer_config_id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            }
+
+            await response.json();
+
+            const updatedData = [...currentData];
+            const updatedConfig = JSON.parse(JSON.stringify(configToDeleteFrom));
+
+            // Remove the selected channel
+            updatedConfig.channel_name.splice(row.channelIndex, 1);
+            updatedConfig.multicast_ip.splice(row.channelIndex, 1);
+            updatedConfig.port.splice(row.channelIndex, 1);
+
+            // Add empty row to maintain structure (always ensure we have 3 rows)
+            const currentRowCount = updatedConfig.channel_name.length;
+            const rowsToAdd = 3 - currentRowCount;
+
+            for (let i = 0; i < rowsToAdd; i++) {
+                updatedConfig.channel_name.push({ key: '' });
+                updatedConfig.multicast_ip.push({ key: '' });
+                updatedConfig.port.push({ key: '' });
+            }
+
+            updatedData[row.configIndex] = updatedConfig;
+            setDataFunction(updatedData);
+
+            showToast('Channel deleted successfully!');
+        }
+    };
+
     const handleInputChange = (field, value) => {
         setEditFormData(prev => ({
             ...prev,
@@ -587,7 +758,7 @@ function StreamerConfigTable() {
     const hasChanges = () => {
         if (!editFormData || !originalData) return false;
 
-        return editFormData.channel_name !== originalData.channel_name ||
+        const basicChanges = editFormData.channel_name !== originalData.channel_name ||
             editFormData.multicast_ip !== originalData.multicast_ip ||
             editFormData.port !== originalData.port ||
             editFormData.stb_no !== originalData.stb_no ||
@@ -596,19 +767,33 @@ function StreamerConfigTable() {
             editFormData.mngmnt_ip !== originalData.mngmnt_ip ||
             editFormData.strm !== originalData.strm ||
             editFormData.card !== originalData.card;
+
+        // For TS Streamer, also check frequency changes
+        if (streamerType === 'TS Streamer') {
+            return basicChanges || editFormData.frequency !== originalData.frequency;
+        }
+
+        return basicChanges;
     };
 
     // Check if new config data is valid
     const isNewConfigValid = () => {
         const firstRow = newConfigData[0];
-        return firstRow.channel_name.trim() !== '' &&
+        const basicValid = firstRow.channel_name.trim() !== '' &&
             firstRow.multicast_ip.trim() !== '' &&
             firstRow.port.trim() !== '' &&
             firstRow.stb_no.trim() !== '' &&
             firstRow.vc_no.trim() !== '';
+
+        // For TS Streamer, also validate frequency
+        if (streamerType === 'TS Streamer') {
+            return basicValid && firstRow.frequency.trim() !== '';
+        }
+
+        return basicValid;
     };
 
-    // Export function
+    // UPDATED: Export function with proper column widths
     const exportToExcel = () => {
         const transformDataForExcelWithStructure = (apiData, startNumber = 1) => {
             if (!apiData || apiData.length === 0) return { data: [], nextNumber: startNumber };
@@ -624,6 +809,7 @@ function StreamerConfigTable() {
                     const channelName = extractSafeValue(config.channel_name?.[i]);
                     const multicastIp = extractSafeValue(config.multicast_ip?.[i]);
                     const port = extractSafeValue(config.port?.[i]);
+                    const frequency = extractSafeValue(config.frequency?.[i]);
                     const stbNo = i === 0 ? extractSafeValue(config.stb_no) : '';
                     const vcNo = i === 0 ? extractSafeValue(config.vc_no) : '';
                     const trfcIp = i === 0 ? extractSafeValue(config.trfc_ip) : '';
@@ -634,6 +820,7 @@ function StreamerConfigTable() {
                     const hasData = channelName.trim() !== '' ||
                         multicastIp.trim() !== '' ||
                         port.trim() !== '' ||
+                        frequency.trim() !== '' ||
                         stbNo.trim() !== '' ||
                         vcNo.trim() !== '' ||
                         trfcIp.trim() !== '' ||
@@ -643,7 +830,7 @@ function StreamerConfigTable() {
 
                     if (hasData) {
                         hasAnyDataInConfig = true;
-                        configRows.push({
+                        const rowData = {
                             "NO": currentNumber++,
                             "CHANNEL NAME": channelName,
                             "MULTICAST IP": multicastIp,
@@ -656,13 +843,19 @@ function StreamerConfigTable() {
                             "CARD": card,
                             "configGroup": configIndex,
                             "hasData": true
-                        });
+                        };
+
+                        // Add frequency for TS Streamer
+                        if (streamerType === 'TS Streamer') {
+                            rowData["FREQUENCY"] = frequency;
+                        }
+
+                        configRows.push(rowData);
                     }
                 }
 
                 if (hasAnyDataInConfig) {
                     excelRows.push(...configRows);
-
                     if (configIndex < apiData.length - 1) {
                         const nextConfigHasData = apiData[configIndex + 1] &&
                             (apiData[configIndex + 1].channel_name?.some(ch => extractSafeValue(ch).trim() !== '') ||
@@ -681,34 +874,32 @@ function StreamerConfigTable() {
             return { data: excelRows, nextNumber: currentNumber };
         };
 
-        const verticalResult = transformDataForExcelWithStructure(verticalData, 1);
-        const horizontalResult = transformDataForExcelWithStructure(horizontalData, verticalResult.nextNumber);
+        // For TS Streamer, use tsStreamerData
+        if (streamerType === 'TS Streamer') {
+            const tsResult = transformDataForExcelWithStructure(tsStreamerData, 1);
 
-        if (verticalResult.data.length === 0 && horizontalResult.data.length === 0) {
-            showErrorToast("No data to export.");
-            return;
-        }
+            if (tsResult.data.length === 0) {
+                showErrorToast("No data to export.");
+                return;
+            }
 
-        const wb = XLSX.utils.book_new();
-        const columnHeaders = [
-            "NO",
-            "CHANNEL NAME",
-            "MULTICAST IP",
-            "PORT",
-            "STB NO",
-            "VC NO",
-            "TRFC IP",
-            "MNGMNT IP",
-            "STRM",
-            "CARD"
-        ];
+            const wb = XLSX.utils.book_new();
+            const columnHeaders = [
+                "NO",
+                "CHANNEL NAME",
+                "MULTICAST IP",
+                "PORT",
+                "FREQUENCY",
+                "STB NO",
+                "VC NO",
+                "TRFC IP",
+                "MNGMNT IP",
+                "STRM",
+                "CARD"
+            ];
 
-        const allData = [];
-
-        if (verticalResult.data.length > 0) {
-            allData.push(["VERTICAL"]);
-            allData.push(columnHeaders);
-            verticalResult.data.forEach((row) => {
+            const allData = [columnHeaders];
+            tsResult.data.forEach((row) => {
                 if (Object.keys(row).length === 0) {
                     allData.push([]);
                 } else {
@@ -716,131 +907,117 @@ function StreamerConfigTable() {
                     allData.push(rowData);
                 }
             });
+
+            const ws = XLSX.utils.aoa_to_sheet(allData);
+
+            // Set column widths for TS Streamer
+            const columnWidths = [
+                { wch: 8 },    // NO
+                { wch: 25 },   // CHANNEL NAME
+                { wch: 15 },   // MULTICAST IP
+                { wch: 10 },   // PORT
+                { wch: 12 },   // FREQUENCY
+                { wch: 12 },   // STB NO
+                { wch: 12 },   // VC NO
+                { wch: 15 },   // TRFC IP
+                { wch: 15 },   // MNGMNT IP
+                { wch: 10 },   // STRM
+                { wch: 10 }    // CARD
+            ];
+            ws['!cols'] = columnWidths;
+
+            XLSX.utils.book_append_sheet(wb, ws, "TS Streamer Configuration");
+            const filename = selectedResort ? `ts_streamer_config_${selectedResort.resort_name.replace(/\s+/g, '_')}.xlsx` : 'ts_streamer_config.xlsx';
+            XLSX.writeFile(wb, filename);
+        } else {
+            // Original export logic for non-TS Streamer
+            const verticalResult = transformDataForExcelWithStructure(verticalData, 1);
+            const horizontalResult = transformDataForExcelWithStructure(horizontalData, verticalResult.nextNumber);
+
+            if (verticalResult.data.length === 0 && horizontalResult.data.length === 0) {
+                showErrorToast("No data to export.");
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+
+            // Define column headers based on streamer type
+            const baseHeaders = [
+                "NO",
+                "CHANNEL NAME",
+                "MULTICAST IP",
+                "PORT",
+                "STB NO",
+                "VC NO",
+                "TRFC IP",
+                "MNGMNT IP",
+                "STRM",
+                "CARD"
+            ];
+
+            const columnHeaders = baseHeaders;
+
+            const allData = [];
+
+            if (verticalResult.data.length > 0) {
+                allData.push(["VERTICAL"]);
+                allData.push(columnHeaders);
+                verticalResult.data.forEach((row) => {
+                    if (Object.keys(row).length === 0) {
+                        allData.push([]);
+                    } else {
+                        const rowData = columnHeaders.map(header => row[header] || '');
+                        allData.push(rowData);
+                    }
+                });
+                if (horizontalResult.data.length > 0) {
+                    allData.push([]);
+                }
+            }
+
             if (horizontalResult.data.length > 0) {
-                allData.push([]);
+                allData.push(["HORIZONTAL"]);
+                allData.push(columnHeaders);
+                horizontalResult.data.forEach((row) => {
+                    if (Object.keys(row).length === 0) {
+                        allData.push([]);
+                    } else {
+                        const rowData = columnHeaders.map(header => row[header] || '');
+                        allData.push(rowData);
+                    }
+                });
             }
+
+            const ws = XLSX.utils.aoa_to_sheet(allData);
+
+            // Set column widths for non-TS Streamer
+            const columnWidths = [
+                { wch: 8 },    // NO
+                { wch: 25 },   // CHANNEL NAME
+                { wch: 15 },   // MULTICAST IP
+                { wch: 10 },   // PORT
+                { wch: 12 },   // STB NO
+                { wch: 12 },   // VC NO
+                { wch: 15 },   // TRFC IP
+                { wch: 15 },   // MNGMNT IP
+                { wch: 10 },   // STRM
+                { wch: 10 }    // CARD
+            ];
+            ws['!cols'] = columnWidths;
+
+            XLSX.utils.book_append_sheet(wb, ws, "Streamer Configuration");
+            const filename = selectedResort ? `streamer_config_${selectedResort.resort_name.replace(/\s+/g, '_')}_${streamerType.replace(/\s+/g, '_')}.xlsx` : 'streamer_config_all_data.xlsx';
+            XLSX.writeFile(wb, filename);
         }
-
-        if (horizontalResult.data.length > 0) {
-            allData.push(["HORIZONTAL"]);
-            allData.push(columnHeaders);
-            horizontalResult.data.forEach((row) => {
-                if (Object.keys(row).length === 0) {
-                    allData.push([]);
-                } else {
-                    const rowData = columnHeaders.map(header => row[header] || '');
-                    allData.push(rowData);
-                }
-            });
-        }
-
-        const ws = XLSX.utils.aoa_to_sheet(allData);
-        const range = XLSX.utils.decode_range(ws['!ref']);
-
-        for (let R = range.s.r; R <= range.e.r; ++R) {
-            for (let C = range.s.c; C <= range.e.c; ++C) {
-                const address = XLSX.utils.encode_cell({ r: R, c: C });
-                if (!ws[address]) {
-                    ws[address] = { t: 's', v: '' };
-                }
-
-                const cellValue = allData[R] ? allData[R][C] : '';
-                const isSectionHeader = R === 0 || (verticalResult.data.length > 0 && R === 1);
-                const isColumnHeader = (verticalResult.data.length > 0 && R === 1) ||
-                    (horizontalResult.data.length > 0 && R === (verticalResult.data.length > 0 ? allData.findIndex(row => row[0] === "HORIZONTAL") : 1));
-
-                if (isSectionHeader && C === 0 && cellValue === "VERTICAL") {
-                    ws[address].s = {
-                        font: {
-                            bold: true,
-                            sz: 14,
-                        },
-                        alignment: {
-                            horizontal: 'left',
-                            vertical: 'center'
-                        },
-                        fill: {
-                            fgColor: { rgb: "E3F2FD" }
-                        }
-                    };
-                } else if (isSectionHeader && C === 0 && cellValue === "HORIZONTAL") {
-                    ws[address].s = {
-                        font: {
-                            bold: true,
-                            sz: 14,
-                        },
-                        alignment: {
-                            horizontal: 'left',
-                            vertical: 'center'
-                        },
-                        fill: {
-                            fgColor: { rgb: "E3F2FD" }
-                        }
-                    };
-                } else if (isColumnHeader && cellValue) {
-                    ws[address].s = {
-                        font: {
-                            bold: true,
-                            sz: 12,
-                        },
-                        alignment: {
-                            horizontal: 'center',
-                            vertical: 'center'
-                        },
-                        fill: {
-                            fgColor: { rgb: "D0D0D0" }
-                        },
-                        border: {
-                            top: { style: 'thin', color: { rgb: "000000" } },
-                            left: { style: 'thin', color: { rgb: "000000" } },
-                            bottom: { style: 'thin', color: { rgb: "000000" } },
-                            right: { style: 'thin', color: { rgb: "000000" } }
-                        }
-                    };
-                } else if (R > 1 && cellValue !== undefined && cellValue !== '') {
-                    ws[address].s = {
-                        font: {
-                            sz: 11
-                        },
-                        alignment: {
-                            horizontal: C === 0 ? 'center' : 'left',
-                            vertical: 'center'
-                        },
-                        border: {
-                            top: { style: 'thin', color: { rgb: "000000" } },
-                            left: { style: 'thin', color: { rgb: "000000" } },
-                            bottom: { style: 'thin', color: { rgb: "000000" } },
-                            right: { style: 'thin', color: { rgb: "000000" } }
-                        }
-                    };
-                }
-            }
-        }
-
-        const colWidths = [
-            { wch: 8 },   // NO
-            { wch: 30 },  // CHANNEL NAME
-            { wch: 20 },  // MULTICAST IP
-            { wch: 12 },  // PORT
-            { wch: 25 },  // STB NO
-            { wch: 15 },  // VC NO
-            { wch: 15 },  // TRFC IP
-            { wch: 15 },  // MNGMNT IP
-            { wch: 12 },  // STRM
-            { wch: 12 },  // CARD
-        ];
-        ws['!cols'] = colWidths;
-
-        XLSX.utils.book_append_sheet(wb, ws, "Streamer Configuration");
-        const filename = selectedResort ? `streamer_config_${selectedResort.resort_name.replace(/\s+/g, '_')}.xlsx` : 'streamer_config_all_data.xlsx';
-        XLSX.writeFile(wb, filename);
     };
 
     const allTableRows = getAllTableRows();
 
     // Function to render add rows (3 rows for new configuration)
     const renderAddRows = (section) => {
-        const isAdding = section === 'vertical' ? addingVertical : addingHorizontal;
+        const isAdding = streamerType === 'TS Streamer'
+            ? addingTs
+            : (section === 'vertical' ? addingVertical : addingHorizontal);
 
         if (!isAdding) return null;
 
@@ -895,6 +1072,21 @@ function StreamerConfigTable() {
                         sx={{ minWidth: '100px' }}
                     />
                 </TableCell>
+
+                {/* Frequency column for TS Streamer */}
+                {streamerType === 'TS Streamer' && (
+                    <TableCell align="center">
+                        <TextField
+                            value={rowData.frequency}
+                            onChange={(e) => handleNewInputChange(rowIndex, 'frequency', e.target.value)}
+                            size="small"
+                            fullWidth
+                            variant="outlined"
+                            placeholder="Enter frequency"
+                            sx={{ minWidth: '145px' }}
+                        />
+                    </TableCell>
+                )}
 
                 <TableCell>
                     {rowIndex === 0 ? (
@@ -1073,6 +1265,879 @@ function StreamerConfigTable() {
         ));
     };
 
+    // Function to render table headers based on streamer type
+    const renderTableHeaders = () => {
+        const baseHeaders = [
+            <TableCell key="no" align="center" sx={{ width: '80px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>NO</TableCell>,
+            <TableCell key="channel" sx={{ minWidth: '200px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>CHANNEL NAME</TableCell>,
+            <TableCell key="multicast" sx={{ minWidth: '155px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>MULTICAST IP</TableCell>,
+            <TableCell key="port" align="center" sx={{ width: '130px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>PORT</TableCell>,
+            <TableCell key="stb" sx={{ minWidth: '180px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>STB NO</TableCell>,
+            <TableCell key="vc" sx={{ minWidth: '120px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>VC NO</TableCell>,
+            <TableCell key="trfc" sx={{ minWidth: '150px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>TRFC IP</TableCell>,
+            <TableCell key="mngmnt" sx={{ minWidth: '150px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>MNGMNT IP</TableCell>,
+            <TableCell key="strm" align="center" sx={{ width: '80px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>STRM</TableCell>,
+            <TableCell key="card" align="center" sx={{ width: '80px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>CARD</TableCell>
+        ];
+
+        // For TS Streamer, insert frequency column after port
+        if (streamerType === 'TS Streamer') {
+            baseHeaders.splice(4, 0,
+                <TableCell key="frequency" align="center" sx={{ width: '120px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>FREQUENCY</TableCell>
+            );
+        }
+
+        // Add actions column if user has edit access
+        if (canAccess("streamerConfig", "edit")) {
+            baseHeaders.push(
+                <TableCell
+                    key="actions"
+                    align="center"
+                    sx={{
+                        width: '140px',
+                        position: 'sticky',
+                        right: 0,
+                        backgroundColor: 'rgb(86, 159, 223) !important',
+                        color: 'white',
+                        zIndex: 12,
+                        borderLeft: '2px solid #e0e0e0',
+                        boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
+                    }}
+                >
+                    ACTIONS
+                </TableCell>
+            );
+        }
+
+        return baseHeaders;
+    };
+
+    // Function to render table cell for a row based on streamer type
+    const renderTableCell = (row, field, isEditing = false) => {
+        const commonProps = {
+            size: "small",
+            fullWidth: true,
+            variant: "outlined"
+        };
+
+        switch (field) {
+            case 'no':
+                return <TableCell align="center" sx={{ borderRight: '2px solid #e0e0e0' }}>{row.no}</TableCell>;
+
+            case 'channel_name':
+                return (
+                    <TableCell>
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.channel_name || ''}
+                                onChange={(e) => handleInputChange('channel_name', e.target.value)}
+                                {...commonProps}
+                                sx={{ minWidth: '120px' }}
+                            />
+                        ) : (
+                            row.channel_name
+                        )}
+                    </TableCell>
+                );
+
+            case 'multicast_ip':
+                return (
+                    <TableCell sx={{ fontFamily: 'monospace' }}>
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.multicast_ip || ''}
+                                onChange={(e) => handleInputChange('multicast_ip', e.target.value)}
+                                {...commonProps}
+                            />
+                        ) : (
+                            row.multicast_ip
+                        )}
+                    </TableCell>
+                );
+
+            case 'port':
+                return (
+                    <TableCell align="center" sx={{ fontFamily: 'monospace' }}>
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.port || ''}
+                                onChange={(e) => handleInputChange('port', e.target.value)}
+                                {...commonProps}
+                            />
+                        ) : (
+                            row.port
+                        )}
+                    </TableCell>
+                );
+
+            case 'frequency':
+                if (streamerType !== 'TS Streamer') return null;
+                return (
+                    <TableCell align="center" sx={{ fontFamily: 'monospace' }}>
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.frequency || ''}
+                                onChange={(e) => handleInputChange('frequency', e.target.value)}
+                                {...commonProps}
+                                sx={{ minWidth: '120px' }}
+                            />
+                        ) : (
+                            row.frequency
+                        )}
+                    </TableCell>
+                );
+
+            case 'stb_no':
+                return (
+                    <TableCell sx={{ fontFamily: 'monospace' }}>
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.stb_no || ''}
+                                onChange={(e) => handleInputChange('stb_no', e.target.value)}
+                                {...commonProps}
+                                disabled={row.channelIndex !== 0}
+                            />
+                        ) : (
+                            row.stb_no
+                        )}
+                    </TableCell>
+                );
+
+            case 'vc_no':
+                return (
+                    <TableCell sx={{ fontFamily: 'monospace' }}>
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.vc_no || ''}
+                                onChange={(e) => handleInputChange('vc_no', e.target.value)}
+                                {...commonProps}
+                                disabled={row.channelIndex !== 0}
+                            />
+                        ) : (
+                            row.vc_no
+                        )}
+                    </TableCell>
+                );
+
+            case 'trfc_ip':
+                return (
+                    <TableCell sx={{ fontFamily: 'monospace' }}>
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.trfc_ip || ''}
+                                onChange={(e) => handleInputChange('trfc_ip', e.target.value)}
+                                {...commonProps}
+                                disabled={row.channelIndex !== 0}
+                            />
+                        ) : (
+                            row.trfc_ip
+                        )}
+                    </TableCell>
+                );
+
+            case 'mngmnt_ip':
+                return (
+                    <TableCell sx={{ fontFamily: 'monospace' }}>
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.mngmnt_ip || ''}
+                                onChange={(e) => handleInputChange('mngmnt_ip', e.target.value)}
+                                {...commonProps}
+                                disabled={row.channelIndex !== 0}
+                            />
+                        ) : (
+                            row.mngmnt_ip
+                        )}
+                    </TableCell>
+                );
+
+            case 'strm':
+                return (
+                    <TableCell align="center">
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.strm || ''}
+                                onChange={(e) => handleInputChange('strm', e.target.value)}
+                                {...commonProps}
+                                disabled={row.channelIndex !== 0}
+                            />
+                        ) : (
+                            row.strm
+                        )}
+                    </TableCell>
+                );
+
+            case 'card':
+                return (
+                    <TableCell align="center">
+                        {isEditing ? (
+                            <TextField
+                                value={editFormData.card || ''}
+                                onChange={(e) => handleInputChange('card', e.target.value)}
+                                {...commonProps}
+                                disabled={row.channelIndex !== 0}
+                            />
+                        ) : (
+                            row.card
+                        )}
+                    </TableCell>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    // Function to render the main table body based on streamer type
+    const renderTableBody = () => {
+        if (streamerType === 'TS Streamer') {
+            return renderTsTableBody();
+        } else {
+            return renderStandardTableBody();
+        }
+    };
+
+    // Render TS Streamer table body (using tsStreamerData)
+    const renderTsTableBody = () => {
+        const tsRows = getAllTableRows();
+        const hasData = tsRows.length > 0 || addingTs;
+
+        if (!hasData && !addingTs) {
+            return (
+                <>
+                    <TableRow>
+                        <TableCell
+                            colSpan={canAccess("streamerConfig", "edit") ? 12 : 11}
+                            align="center"
+                            sx={{
+                                padding: '20px',
+                                fontStyle: 'italic',
+                                color: '#666'
+                            }}
+                        >
+                            No Ts configurations found
+                        </TableCell>
+                    </TableRow>
+                    {/* Add Button for TS Streamer when no data exists */}
+                    {canAccess("streamerConfig", "edit") && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={canAccess("streamerConfig", "edit") ? 12 : 11}
+                                align="center"
+                                sx={{
+                                    backgroundColor: '#f5f5f5',
+                                    borderBottom: '2px solid #e0e0e0',
+                                    padding: '16px'
+                                }}
+                            >
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<AddIcon />}
+                                    onClick={() => handleAddClick('ts')}
+                                    disabled={addingTs}
+                                    sx={{
+                                        textTransform: "none",
+                                        backgroundColor: addingTs ? "#cccccc" : "#2e86de",
+                                        borderColor: addingTs ? "#cccccc" : "#2e86de",
+                                        color: "white",
+                                        transition: "all 0.2s ease-in-out",
+                                        '&:hover': !addingTs
+                                            ? {
+                                                backgroundColor: "#1b4f9c",
+                                                transform: "scale(1.05)",
+                                                borderColor: "#1b4f9c",
+                                            }
+                                            : {},
+                                        '&:disabled': {
+                                            backgroundColor: "#cccccc",
+                                            color: "#666666",
+                                            borderColor: "#cccccc",
+                                        },
+                                    }}
+                                >
+                                    Add New TS Streamer Configuration
+                                </Button>
+
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </>
+            );
+        }
+
+        return (
+            <>
+                {/* TS Streamer Data Rows */}
+                {tsRows.map((row, index, array) => (
+                    <React.Fragment key={row.id}>
+                        {row.isGap ? (
+                            <TableRow>
+                                <TableCell
+                                    colSpan={canAccess("streamerConfig", "edit") ? 12 : 11}
+                                    sx={{
+                                        height: '16px',
+                                        backgroundColor: '#fafafa',
+                                        border: 'none'
+                                    }}
+                                />
+                            </TableRow>
+                        ) : (
+                            <TableRow
+                                sx={{
+                                    '&:hover': {
+                                        backgroundColor: '#fafafa',
+                                    },
+                                    '& td': {
+                                        padding: '8px 8px',
+                                        borderRight: '1px solid #e0e0e0',
+                                        borderBottom: '1px solid #e0e0e0',
+                                        fontSize: '0.85rem',
+                                        backgroundColor: 'white'
+                                    },
+                                }}
+                            >
+                                {renderTableCell(row, 'no')}
+                                {renderTableCell(row, 'channel_name', editingRow === row.id)}
+                                {renderTableCell(row, 'multicast_ip', editingRow === row.id)}
+                                {renderTableCell(row, 'port', editingRow === row.id)}
+                                {renderTableCell(row, 'frequency', editingRow === row.id)}
+                                {renderTableCell(row, 'stb_no', editingRow === row.id)}
+                                {renderTableCell(row, 'vc_no', editingRow === row.id)}
+                                {renderTableCell(row, 'trfc_ip', editingRow === row.id)}
+                                {renderTableCell(row, 'mngmnt_ip', editingRow === row.id)}
+                                {renderTableCell(row, 'strm', editingRow === row.id)}
+                                {renderTableCell(row, 'card', editingRow === row.id)}
+
+                                {canAccess("streamerConfig", "edit") && (
+                                    <TableCell
+                                        align="center"
+                                        sx={{
+                                            position: 'sticky',
+                                            right: 0,
+                                            backgroundColor: editingRow === row.id ? '#f0f7ff' : 'white',
+                                            zIndex: 2,
+                                            borderLeft: '2px solid #e0e0e0',
+                                            boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
+                                            minWidth: '120px',
+                                        }}
+                                    >
+                                        {editingRow === row.id ? (
+                                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                                                <Tooltip title="Save">
+                                                    <span>
+                                                        <IconButton
+                                                            color="primary"
+                                                            size="small"
+                                                            onClick={() => handleSaveClick(row)}
+                                                            disabled={saving || !hasChanges()}
+                                                        >
+                                                            {saving ? <CircularProgress size={20} /> : <SaveIcon />}
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
+                                                <Tooltip title="Cancel">
+                                                    <span>
+                                                        <IconButton
+                                                            color="secondary"
+                                                            size="small"
+                                                            onClick={handleCancelClick}
+                                                            disabled={saving}
+                                                        >
+                                                            <CancelIcon />
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
+                                            </Box>
+                                        ) : (
+                                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                                                <Tooltip title="Edit">
+                                                    <IconButton
+                                                        color="primary"
+                                                        size="small"
+                                                        onClick={() => handleEditClick(row)}
+                                                    >
+                                                        <EditIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Delete">
+                                                    <IconButton
+                                                        color="error"
+                                                        size="small"
+                                                        onClick={() => confirmDelete(row)}
+                                                        disabled={row.isEmptyRow || (!row.channel_name && !row.multicast_ip && !row.port)}
+                                                    >
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Box>
+                                        )}
+                                    </TableCell>
+                                )}
+                            </TableRow>
+                        )}
+                    </React.Fragment>
+                ))}
+
+                {/* Add Rows for TS Streamer */}
+                {renderAddRows('ts')}
+
+                {/* Add Button for TS Streamer - Always show when not in add mode */}
+                {canAccess("streamerConfig", "edit") && !addingTs && (
+                    <TableRow>
+                        <TableCell
+                            colSpan={canAccess("streamerConfig", "edit") ? 12 : 11}
+                            align="center"
+                            sx={{
+                                backgroundColor: '#f5f5f5',
+                                borderBottom: '2px solid #e0e0e0',
+                                padding: '16px'
+                            }}
+                        >
+                            <Button
+                                variant="outlined"
+                                startIcon={<AddIcon />}
+                                onClick={() => handleAddClick('ts')}
+                                disabled={addingTs}
+                                sx={{
+                                    textTransform: "none",
+                                    backgroundColor: addingTs ? "#cccccc" : "#2e86de",
+                                    borderColor: addingTs ? "#cccccc" : "#2e86de",
+                                    color: "white",
+                                    transition: "all 0.2s ease-in-out",
+                                    '&:hover': !addingTs
+                                        ? {
+                                            backgroundColor: "#1b4f9c",
+                                            transform: "scale(1.05)",
+                                            borderColor: "#1b4f9c",
+                                        }
+                                        : {},
+                                    '&:disabled': {
+                                        backgroundColor: "#cccccc",
+                                        color: "#666666",
+                                        borderColor: "#cccccc",
+                                    },
+                                }}
+                            >
+                                Add New TS Streamer Configuration
+                            </Button>
+
+                        </TableCell>
+                    </TableRow>
+                )}
+            </>
+        );
+    };
+
+    // Render standard table body with vertical/horizontal separation
+    const renderStandardTableBody = () => {
+        return (
+            <>
+                {/* VERTICAL SECTION */}
+                <>
+                    <TableRow>
+                        <TableCell
+                            colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                            sx={{
+                                backgroundColor: '#e3f2fd',
+                                fontWeight: 'bold',
+                                textAlign: 'center',
+                                fontSize: '1rem',
+                                borderBottom: '2px solid #90caf9'
+                            }}
+                        >
+                            VERTICAL
+                        </TableCell>
+                    </TableRow>
+
+                    {verticalData.length > 0 && transformDataToTableRows(verticalData, 'vertical').map((row, index, array) => (
+                        <React.Fragment key={row.id}>
+                            {row.isGap ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                                        sx={{
+                                            height: '16px',
+                                            backgroundColor: '#fafafa',
+                                            border: 'none'
+                                        }}
+                                    />
+                                </TableRow>
+                            ) : (
+                                <TableRow
+                                    sx={{
+                                        '&:hover': {
+                                            backgroundColor: '#fafafa',
+                                        },
+                                        '& td': {
+                                            padding: '8px 8px',
+                                            borderRight: '1px solid #e0e0e0',
+                                            borderBottom: '1px solid #e0e0e0',
+                                            fontSize: '0.85rem',
+                                            backgroundColor: 'white'
+                                        },
+                                    }}
+                                >
+                                    {renderTableCell(row, 'no')}
+                                    {renderTableCell(row, 'channel_name', editingRow === row.id)}
+                                    {renderTableCell(row, 'multicast_ip', editingRow === row.id)}
+                                    {renderTableCell(row, 'port', editingRow === row.id)}
+                                    {streamerType === 'TS Streamer' && renderTableCell(row, 'frequency', editingRow === row.id)}
+                                    {renderTableCell(row, 'stb_no', editingRow === row.id)}
+                                    {renderTableCell(row, 'vc_no', editingRow === row.id)}
+                                    {renderTableCell(row, 'trfc_ip', editingRow === row.id)}
+                                    {renderTableCell(row, 'mngmnt_ip', editingRow === row.id)}
+                                    {renderTableCell(row, 'strm', editingRow === row.id)}
+                                    {renderTableCell(row, 'card', editingRow === row.id)}
+
+                                    {canAccess("streamerConfig", "edit") && (
+                                        <TableCell
+                                            align="center"
+                                            sx={{
+                                                position: 'sticky',
+                                                right: 0,
+                                                backgroundColor: editingRow === row.id ? '#f0f7ff' : 'white',
+                                                zIndex: 2,
+                                                borderLeft: '2px solid #e0e0e0',
+                                                boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
+                                                minWidth: '120px',
+                                            }}
+                                        >
+                                            {editingRow === row.id ? (
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                                                    <Tooltip title="Save">
+                                                        <span>
+                                                            <IconButton
+                                                                color="primary"
+                                                                size="small"
+                                                                onClick={() => handleSaveClick(row)}
+                                                                disabled={saving || !hasChanges()}
+                                                            >
+                                                                {saving ? <CircularProgress size={20} /> : <SaveIcon />}
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                    <Tooltip title="Cancel">
+                                                        <span>
+                                                            <IconButton
+                                                                color="secondary"
+                                                                size="small"
+                                                                onClick={handleCancelClick}
+                                                                disabled={saving}
+                                                            >
+                                                                <CancelIcon />
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                </Box>
+                                            ) : (
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                                                    <Tooltip title="Edit">
+                                                        <IconButton
+                                                            color="primary"
+                                                            size="small"
+                                                            onClick={() => handleEditClick(row)}
+                                                        >
+                                                            <EditIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Delete">
+                                                        <IconButton
+                                                            color="error"
+                                                            size="small"
+                                                            onClick={() => confirmDelete(row)}
+                                                            disabled={row.isEmptyRow || (!row.channel_name && !row.multicast_ip && !row.port)}
+                                                        >
+                                                            <DeleteIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Box>
+                                            )}
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            )}
+                        </React.Fragment>
+                    ))}
+
+                    {verticalData.length === 0 && !addingVertical && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                                align="center"
+                                sx={{
+                                    padding: '20px',
+                                    fontStyle: 'italic',
+                                    color: '#666'
+                                }}
+                            >
+                                No vertical configurations found
+                            </TableCell>
+                        </TableRow>
+                    )}
+
+                    {verticalData.length > 0 && addingVertical && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                                sx={{
+                                    height: '16px',
+                                    backgroundColor: '#fafafa',
+                                    border: 'none'
+                                }}
+                            />
+                        </TableRow>
+                    )}
+
+                    {renderAddRows('vertical')}
+
+                    {canAccess("streamerConfig", "edit") && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                                align="center"
+                                sx={{
+                                    backgroundColor: '#f5f5f5',
+                                    borderBottom: '2px solid #e0e0e0',
+                                    padding: '16px'
+                                }}
+                            >
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<AddIcon />}
+                                    onClick={() => handleAddClick('vertical')}
+                                    disabled={addingVertical}
+                                    sx={{
+                                        textTransform: "none",
+                                        backgroundColor: addingVertical ? "#cccccc" : "#2e86de",
+                                        borderColor: addingVertical ? "#cccccc" : "#2e86de",
+                                        color: "white",
+                                        transition: "all 0.2s ease-in-out",
+                                        '&:hover': !addingVertical
+                                            ? {
+                                                backgroundColor: "#1b4f9c",
+                                                transform: "scale(1.05)",
+                                                borderColor: "#1b4f9c",
+                                            }
+                                            : {},
+                                        '&:disabled': {
+                                            backgroundColor: "#cccccc",
+                                            color: "#666666",
+                                            borderColor: "#cccccc",
+                                        },
+                                    }}
+                                >
+                                    Add New Vertical Configuration
+                                </Button>
+
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </>
+
+                {/* HORIZONTAL SECTION */}
+                <>
+                    <TableRow>
+                        <TableCell
+                            colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                            sx={{
+                                backgroundColor: '#e3f2fd',
+                                fontWeight: 'bold',
+                                textAlign: 'center',
+                                fontSize: '1rem',
+                                borderBottom: '2px solid #90caf9'
+                            }}
+                        >
+                            HORIZONTAL
+                        </TableCell>
+                    </TableRow>
+
+                    {horizontalData.length > 0 && transformDataToTableRows(horizontalData, 'horizontal').map((row, index, array) => (
+                        <React.Fragment key={row.id}>
+                            {row.isGap ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                                        sx={{
+                                            height: '16px',
+                                            backgroundColor: '#fafafa',
+                                            border: 'none'
+                                        }}
+                                    />
+                                </TableRow>
+                            ) : (
+                                <TableRow
+                                    sx={{
+                                        '&:hover': {
+                                            backgroundColor: '#fafafa',
+                                        },
+                                        '& td': {
+                                            padding: '8px 8px',
+                                            borderRight: '1px solid #e0e0e0',
+                                            borderBottom: '1px solid #e0e0e0',
+                                            fontSize: '0.85rem',
+                                            backgroundColor: 'white'
+                                        },
+                                    }}
+                                >
+                                    {renderTableCell(row, 'no')}
+                                    {renderTableCell(row, 'channel_name', editingRow === row.id)}
+                                    {renderTableCell(row, 'multicast_ip', editingRow === row.id)}
+                                    {renderTableCell(row, 'port', editingRow === row.id)}
+                                    {streamerType === 'TS Streamer' && renderTableCell(row, 'frequency', editingRow === row.id)}
+                                    {renderTableCell(row, 'stb_no', editingRow === row.id)}
+                                    {renderTableCell(row, 'vc_no', editingRow === row.id)}
+                                    {renderTableCell(row, 'trfc_ip', editingRow === row.id)}
+                                    {renderTableCell(row, 'mngmnt_ip', editingRow === row.id)}
+                                    {renderTableCell(row, 'strm', editingRow === row.id)}
+                                    {renderTableCell(row, 'card', editingRow === row.id)}
+
+                                    {canAccess("streamerConfig", "edit") && (
+                                        <TableCell
+                                            align="center"
+                                            sx={{
+                                                position: 'sticky',
+                                                right: 0,
+                                                backgroundColor: editingRow === row.id ? '#f0f7ff' : 'white',
+                                                zIndex: 2,
+                                                borderLeft: '2px solid #e0e0e0',
+                                                boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
+                                                minWidth: '120px',
+                                            }}
+                                        >
+                                            {editingRow === row.id ? (
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                                                    <Tooltip title="Save">
+                                                        <span>
+                                                            <IconButton
+                                                                color="primary"
+                                                                size="small"
+                                                                onClick={() => handleSaveClick(row)}
+                                                                disabled={saving || !hasChanges()}
+                                                            >
+                                                                {saving ? <CircularProgress size={20} /> : <SaveIcon />}
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                    <Tooltip title="Cancel">
+                                                        <span>
+                                                            <IconButton
+                                                                color="secondary"
+                                                                size="small"
+                                                                onClick={handleCancelClick}
+                                                                disabled={saving}
+                                                            >
+                                                                <CancelIcon />
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                </Box>
+                                            ) : (
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                                                    <Tooltip title="Edit">
+                                                        <IconButton
+                                                            color="primary"
+                                                            size="small"
+                                                            onClick={() => handleEditClick(row)}
+                                                        >
+                                                            <EditIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Delete">
+                                                        <IconButton
+                                                            color="error"
+                                                            size="small"
+                                                            onClick={() => confirmDelete(row)}
+                                                        >
+                                                            <DeleteIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Box>
+                                            )}
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            )}
+                        </React.Fragment>
+                    ))}
+
+                    {horizontalData.length === 0 && !addingHorizontal && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                                align="center"
+                                sx={{
+                                    padding: '20px',
+                                    fontStyle: 'italic',
+                                    color: '#666'
+                                }}
+                            >
+                                No horizontal configurations found
+                            </TableCell>
+                        </TableRow>
+                    )}
+
+                    {horizontalData.length > 0 && addingHorizontal && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                                sx={{
+                                    height: '16px',
+                                    backgroundColor: '#fafafa',
+                                    border: 'none'
+                                }}
+                            />
+                        </TableRow>
+                    )}
+
+                    {renderAddRows('horizontal')}
+
+                    {canAccess("streamerConfig", "edit") && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={canAccess("streamerConfig", "edit") ? (streamerType === 'TS Streamer' ? 12 : 11) : (streamerType === 'TS Streamer' ? 11 : 10)}
+                                align="center"
+                                sx={{
+                                    backgroundColor: '#f5f5f5',
+                                    borderBottom: '2px solid #e0e0e0',
+                                    padding: '16px'
+                                }}
+                            >
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<AddIcon />}
+                                    onClick={() => handleAddClick('horizontal')}
+                                    disabled={addingHorizontal}
+                                    sx={{
+                                        textTransform: "none",
+                                        backgroundColor: addingHorizontal ? "#cccccc" : "#2e86de",
+                                        borderColor: addingHorizontal ? "#cccccc" : "#2e86de",
+                                        color: "white",
+                                        transition: "all 0.2s ease-in-out",
+                                        '&:hover': !addingHorizontal
+                                            ? {
+                                                backgroundColor: "#1b4f9c",
+                                                transform: "scale(1.05)",
+                                                borderColor: "#1b4f9c",
+                                            }
+                                            : {},
+                                        '&:disabled': {
+                                            backgroundColor: "#cccccc",
+                                            color: "#666666",
+                                            borderColor: "#cccccc",
+                                        },
+                                    }}
+                                >
+                                    Add New Horizontal Configuration
+                                </Button>
+
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </>
+            </>
+        );
+    };
+
     return (
         <div className="streamer-config-table">
             {/* Filter Section */}
@@ -1098,12 +2163,27 @@ function StreamerConfigTable() {
                         />
                     </Box>
 
+                    <Box>
+                        <FormLabel sx={{ fontWeight: 'bold', mb: 1, display: 'block' }}>Streamer Type</FormLabel>
+                        <TextField
+                            value={streamerType}
+                            onChange={handleStreamerTypeChange}
+                            size="small"
+                            variant="outlined"
+                            placeholder="Streamer type"
+                            sx={{ backgroundColor: 'white', width: '11vw' }}
+                            InputProps={{
+                                readOnly: true,
+                            }}
+                        />
+                    </Box>
+
                     <Box sx={{ alignSelf: 'flex-end' }}>
                         <Button
                             variant="contained"
                             startIcon={<GetAppIcon />}
                             onClick={exportToExcel}
-                            disabled={!dataLoaded || (verticalData.length === 0 && horizontalData.length === 0)}
+                            disabled={!dataLoaded || (verticalData.length === 0 && horizontalData.length === 0 && tsStreamerData.length === 0)}
                             sx={{
                                 borderRadius: "9px",
                                 textTransform: "none",
@@ -1123,7 +2203,7 @@ function StreamerConfigTable() {
 
                 {selectedResort && !loading && dataLoaded && (
                     <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
-                        Showing data for resort: <strong>{selectedResort.resort_name}</strong>
+                        Showing data for resort: <strong>{selectedResort.resort_name}</strong> | Streamer Type: <strong>{streamerType}</strong>
                     </Typography>
                 )}
             </Box>
@@ -1147,11 +2227,11 @@ function StreamerConfigTable() {
                 </Alert>
             )}
 
-            {dataLoaded && !loading && selectedResort && (
+            {dataLoaded && !loading && selectedResort && streamerType && (
                 <>
-                    {(allTableRows.length === 0 && !addingVertical && !addingHorizontal) ? (
+                    {(allTableRows.length === 0 && !addingVertical && !addingHorizontal && !addingTs) ? (
                         <Alert severity="info" sx={{ m: 2 }}>
-                            No streamer data available for resort: {selectedResort.resort_name}.
+                            No streamer data available for resort: {selectedResort.resort_name} with streamer type: {streamerType}.
                         </Alert>
                     ) : null}
 
@@ -1161,7 +2241,7 @@ function StreamerConfigTable() {
                             sx={{
                                 boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
                                 borderRadius: '4px',
-                                maxHeight: '67vh',
+                                height: '73vh',
                                 overflow: 'auto',
                                 position: 'relative',
                                 mt: 2
@@ -1170,7 +2250,7 @@ function StreamerConfigTable() {
                             <Table
                                 stickyHeader
                                 sx={{
-                                    minWidth: 1500,
+                                    minWidth: streamerType === 'TS Streamer' ? 1650 : 1500,
                                     '& .MuiTableCell-root': {
                                         fontSize: '0.85rem',
                                     },
@@ -1197,722 +2277,12 @@ function StreamerConfigTable() {
                                             zIndex: 11,
                                         }
                                     }}>
-                                        <TableCell align="center" sx={{
-                                            width: '80px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white',
-                                        }}>NO</TableCell>
-
-                                        <TableCell sx={{
-                                            minWidth: '200px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white'
-                                        }}>CHANNEL NAME</TableCell>
-
-                                        <TableCell sx={{
-                                            minWidth: '155px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white'
-                                        }}>MULTICAST IP</TableCell>
-
-                                        <TableCell align="center" sx={{
-                                            width: '130px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white'
-                                        }}>PORT</TableCell>
-
-                                        <TableCell sx={{
-                                            minWidth: '180px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white'
-                                        }}>STB NO</TableCell>
-
-                                        <TableCell sx={{
-                                            minWidth: '120px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white'
-                                        }}>VC NO</TableCell>
-
-                                        <TableCell sx={{
-                                            minWidth: '150px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white'
-                                        }}>TRFC IP</TableCell>
-
-                                        <TableCell sx={{
-                                            minWidth: '150px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white'
-                                        }}>MNGMNT IP</TableCell>
-
-                                        <TableCell align="center" sx={{
-                                            width: '80px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white'
-                                        }}>STRM</TableCell>
-
-                                        <TableCell align="center" sx={{
-                                            width: '80px',
-                                            backgroundColor: 'rgb(86, 159, 223) !important',
-                                            color: 'white'
-                                        }}>CARD</TableCell>
-
-                                        {canAccess("streamerConfig", "edit") && (
-                                            <TableCell
-                                                align="center"
-                                                sx={{
-                                                    width: '140px',
-                                                    position: 'sticky',
-                                                    right: 0,
-                                                    backgroundColor: 'rgb(86, 159, 223) !important',
-                                                    color: 'white',
-                                                    zIndex: 12,
-                                                    borderLeft: '2px solid #e0e0e0',
-                                                    boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
-                                                }}
-                                            >
-                                                ACTIONS
-                                            </TableCell>
-                                        )}
+                                        {renderTableHeaders()}
                                     </TableRow>
                                 </TableHead>
 
                                 <TableBody>
-                                    {/* VERTICAL SECTION */}
-                                    <>
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                sx={{
-                                                    backgroundColor: '#e3f2fd',
-                                                    fontWeight: 'bold',
-                                                    textAlign: 'center',
-                                                    fontSize: '1rem',
-                                                    borderBottom: '2px solid #90caf9'
-                                                }}
-                                            >
-                                                VERTICAL
-                                            </TableCell>
-                                        </TableRow>
-
-                                        {verticalData.length > 0 && transformDataToTableRows(verticalData, 'vertical').map((row, index, array) => (
-                                            <React.Fragment key={row.id}>
-                                                {row.isGap ? (
-                                                    <TableRow>
-                                                        <TableCell
-                                                            colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                            sx={{
-                                                                height: '16px',
-                                                                backgroundColor: '#fafafa',
-                                                                border: 'none'
-                                                            }}
-                                                        />
-                                                    </TableRow>
-                                                ) : (
-                                                    <TableRow
-                                                        sx={{
-                                                            '&:hover': {
-                                                                backgroundColor: '#fafafa',
-                                                            },
-                                                            '& td': {
-                                                                padding: '8px 8px',
-                                                                borderRight: '1px solid #e0e0e0',
-                                                                borderBottom: '1px solid #e0e0e0',
-                                                                fontSize: '0.85rem',
-                                                                backgroundColor: 'white'
-                                                            },
-                                                        }}
-                                                    >
-                                                        <TableCell align="center" sx={{ borderRight: '2px solid #e0e0e0' }}>
-                                                            {row.no}
-                                                        </TableCell>
-
-                                                        <TableCell>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.channel_name || ''}
-                                                                    onChange={(e) => handleInputChange('channel_name', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    sx={{ minWidth: '120px' }}
-                                                                />
-                                                            ) : (
-                                                                row.channel_name
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.multicast_ip || ''}
-                                                                    onChange={(e) => handleInputChange('multicast_ip', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                />
-                                                            ) : (
-                                                                row.multicast_ip
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell align="center" sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.port || ''}
-                                                                    onChange={(e) => handleInputChange('port', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                />
-                                                            ) : (
-                                                                row.port
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.stb_no || ''}
-                                                                    onChange={(e) => handleInputChange('stb_no', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.stb_no
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.vc_no || ''}
-                                                                    onChange={(e) => handleInputChange('vc_no', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.vc_no
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.trfc_ip || ''}
-                                                                    onChange={(e) => handleInputChange('trfc_ip', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.trfc_ip
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.mngmnt_ip || ''}
-                                                                    onChange={(e) => handleInputChange('mngmnt_ip', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.mngmnt_ip
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell align="center">
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.strm || ''}
-                                                                    onChange={(e) => handleInputChange('strm', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.strm
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell align="center">
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.card || ''}
-                                                                    onChange={(e) => handleInputChange('card', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.card
-                                                            )}
-                                                        </TableCell>
-
-                                                        {canAccess("streamerConfig", "edit") && (
-                                                            <TableCell
-                                                                align="center"
-                                                                sx={{
-                                                                    position: 'sticky',
-                                                                    right: 0,
-                                                                    backgroundColor: editingRow === row.id ? '#f0f7ff' : 'white',
-                                                                    zIndex: 2,
-                                                                    borderLeft: '2px solid #e0e0e0',
-                                                                    boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
-                                                                    minWidth: '120px',
-                                                                }}
-                                                            >
-                                                                {editingRow === row.id ? (
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                                                                        <Tooltip title="Save">
-                                                                            <span>
-                                                                                <IconButton
-                                                                                    color="primary"
-                                                                                    size="small"
-                                                                                    onClick={() => handleSaveClick(row)}
-                                                                                    disabled={saving || !hasChanges()}
-                                                                                >
-                                                                                    {saving ? <CircularProgress size={20} /> : <SaveIcon />}
-                                                                                </IconButton>
-                                                                            </span>
-                                                                        </Tooltip>
-                                                                        <Tooltip title="Cancel">
-                                                                            <span>
-                                                                                <IconButton
-                                                                                    color="secondary"
-                                                                                    size="small"
-                                                                                    onClick={handleCancelClick}
-                                                                                    disabled={saving}
-                                                                                >
-                                                                                    <CancelIcon />
-                                                                                </IconButton>
-                                                                            </span>
-                                                                        </Tooltip>
-                                                                    </Box>
-                                                                ) : (
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                                                                        <Tooltip title="Edit">
-                                                                            <IconButton
-                                                                                color="primary"
-                                                                                size="small"
-                                                                                onClick={() => handleEditClick(row)}
-                                                                            >
-                                                                                <EditIcon />
-                                                                            </IconButton>
-                                                                        </Tooltip>
-                                                                        <Tooltip title="Delete">
-                                                                            <IconButton
-                                                                                color="error"
-                                                                                size="small"
-                                                                                onClick={() => confirmDelete(row)}
-                                                                                disabled={row.isEmptyRow || (!row.channel_name && !row.multicast_ip && !row.port)}
-                                                                            >
-                                                                                <DeleteIcon />
-                                                                            </IconButton>
-                                                                        </Tooltip>
-                                                                    </Box>
-                                                                )}
-                                                            </TableCell>
-                                                        )}
-                                                    </TableRow>
-                                                )}
-                                            </React.Fragment>
-                                        ))}
-
-                                        {verticalData.length === 0 && !addingVertical && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                    align="center"
-                                                    sx={{
-                                                        padding: '20px',
-                                                        fontStyle: 'italic',
-                                                        color: '#666'
-                                                    }}
-                                                >
-                                                    No vertical configurations found
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-
-                                        {verticalData.length > 0 && addingVertical && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                    sx={{
-                                                        height: '16px',
-                                                        backgroundColor: '#fafafa',
-                                                        border: 'none'
-                                                    }}
-                                                />
-                                            </TableRow>
-                                        )}
-
-                                        {renderAddRows('vertical')}
-
-                                        {canAccess("streamerConfig", "edit") && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                    align="center"
-                                                    sx={{
-                                                        backgroundColor: '#f5f5f5',
-                                                        borderBottom: '2px solid #e0e0e0',
-                                                        padding: '16px'
-                                                    }}
-                                                >
-                                                    <Button
-                                                        variant="outlined"
-                                                        startIcon={<AddIcon />}
-                                                        onClick={() => handleAddClick('vertical')}
-                                                        disabled={addingVertical}
-                                                        sx={{
-                                                            textTransform: "none",
-                                                            borderColor: addingVertical ? '#cccccc' : '#1976d2',
-                                                            color: addingVertical ? '#cccccc' : '#1976d2',
-                                                            '&:hover': !addingVertical ? {
-                                                                backgroundColor: '#1976d2',
-                                                                color: 'white'
-                                                            } : {},
-                                                            '&:disabled': {
-                                                                backgroundColor: 'transparent'
-                                                            }
-                                                        }}
-                                                    >
-                                                        Add New Vertical Configuration
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </>
-
-                                    {/* HORIZONTAL SECTION */}
-                                    <>
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                sx={{
-                                                    backgroundColor: '#e3f2fd',
-                                                    fontWeight: 'bold',
-                                                    textAlign: 'center',
-                                                    fontSize: '1rem',
-                                                    borderBottom: '2px solid #90caf9'
-                                                }}
-                                            >
-                                                HORIZONTAL
-                                            </TableCell>
-                                        </TableRow>
-
-                                        {horizontalData.length > 0 && transformDataToTableRows(horizontalData, 'horizontal').map((row, index, array) => (
-                                            <React.Fragment key={row.id}>
-                                                {row.isGap ? (
-                                                    <TableRow>
-                                                        <TableCell
-                                                            colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                            sx={{
-                                                                height: '16px',
-                                                                backgroundColor: '#fafafa',
-                                                                border: 'none'
-                                                            }}
-                                                        />
-                                                    </TableRow>
-                                                ) : (
-                                                    <TableRow
-                                                        sx={{
-                                                            '&:hover': {
-                                                                backgroundColor: '#fafafa',
-                                                            },
-                                                            '& td': {
-                                                                padding: '8px 8px',
-                                                                borderRight: '1px solid #e0e0e0',
-                                                                borderBottom: '1px solid #e0e0e0',
-                                                                fontSize: '0.85rem',
-                                                                backgroundColor: 'white'
-                                                            },
-                                                        }}
-                                                    >
-                                                        <TableCell align="center" sx={{ borderRight: '2px solid #e0e0e0' }}>
-                                                            {row.no}
-                                                        </TableCell>
-
-                                                        <TableCell>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.channel_name || ''}
-                                                                    onChange={(e) => handleInputChange('channel_name', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                />
-                                                            ) : (
-                                                                row.channel_name
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.multicast_ip || ''}
-                                                                    onChange={(e) => handleInputChange('multicast_ip', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                />
-                                                            ) : (
-                                                                row.multicast_ip
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell align="center" sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.port || ''}
-                                                                    onChange={(e) => handleInputChange('port', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                />
-                                                            ) : (
-                                                                row.port
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.stb_no || ''}
-                                                                    onChange={(e) => handleInputChange('stb_no', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.stb_no
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.vc_no || ''}
-                                                                    onChange={(e) => handleInputChange('vc_no', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.vc_no
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.trfc_ip || ''}
-                                                                    onChange={(e) => handleInputChange('trfc_ip', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.trfc_ip
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell sx={{ fontFamily: 'monospace' }}>
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.mngmnt_ip || ''}
-                                                                    onChange={(e) => handleInputChange('mngmnt_ip', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.mngmnt_ip
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell align="center">
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.strm || ''}
-                                                                    onChange={(e) => handleInputChange('strm', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.strm
-                                                            )}
-                                                        </TableCell>
-
-                                                        <TableCell align="center">
-                                                            {editingRow === row.id ? (
-                                                                <TextField
-                                                                    value={editFormData.card || ''}
-                                                                    onChange={(e) => handleInputChange('card', e.target.value)}
-                                                                    size="small"
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    disabled={row.channelIndex !== 0}
-                                                                />
-                                                            ) : (
-                                                                row.card
-                                                            )}
-                                                        </TableCell>
-
-                                                        {canAccess("streamerConfig", "edit") && (
-                                                            <TableCell
-                                                                align="center"
-                                                                sx={{
-                                                                    position: 'sticky',
-                                                                    right: 0,
-                                                                    backgroundColor: editingRow === row.id ? '#f0f7ff' : 'white',
-                                                                    zIndex: 2,
-                                                                    borderLeft: '2px solid #e0e0e0',
-                                                                    boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
-                                                                    minWidth: '120px',
-                                                                }}
-                                                            >
-                                                                {editingRow === row.id ? (
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                                                                        <Tooltip title="Save">
-                                                                            <span>
-                                                                                <IconButton
-                                                                                    color="primary"
-                                                                                    size="small"
-                                                                                    onClick={() => handleSaveClick(row)}
-                                                                                    disabled={saving || !hasChanges()}
-                                                                                >
-                                                                                    {saving ? <CircularProgress size={20} /> : <SaveIcon />}
-                                                                                </IconButton>
-                                                                            </span>
-                                                                        </Tooltip>
-                                                                        <Tooltip title="Cancel">
-                                                                            <span>
-                                                                                <IconButton
-                                                                                    color="secondary"
-                                                                                    size="small"
-                                                                                    onClick={handleCancelClick}
-                                                                                    disabled={saving}
-                                                                                >
-                                                                                    <CancelIcon />
-                                                                                </IconButton>
-                                                                            </span>
-                                                                        </Tooltip>
-                                                                    </Box>
-                                                                ) : (
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                                                                        <Tooltip title="Edit">
-                                                                            <IconButton
-                                                                                color="primary"
-                                                                                size="small"
-                                                                                onClick={() => handleEditClick(row)}
-                                                                            >
-                                                                                <EditIcon />
-                                                                            </IconButton>
-                                                                        </Tooltip>
-                                                                        <Tooltip title="Delete">
-                                                                            <IconButton
-                                                                                color="error"
-                                                                                size="small"
-                                                                                onClick={() => confirmDelete(row)}
-                                                                            >
-                                                                                <DeleteIcon />
-                                                                            </IconButton>
-                                                                        </Tooltip>
-                                                                    </Box>
-                                                                )}
-                                                            </TableCell>
-                                                        )}
-                                                    </TableRow>
-                                                )}
-                                            </React.Fragment>
-                                        ))}
-
-                                        {horizontalData.length === 0 && !addingHorizontal && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                    align="center"
-                                                    sx={{
-                                                        padding: '20px',
-                                                        fontStyle: 'italic',
-                                                        color: '#666'
-                                                    }}
-                                                >
-                                                    No horizontal configurations found
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-
-                                        {horizontalData.length > 0 && addingHorizontal && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                    sx={{
-                                                        height: '16px',
-                                                        backgroundColor: '#fafafa',
-                                                        border: 'none'
-                                                    }}
-                                                />
-                                            </TableRow>
-                                        )}
-
-                                        {renderAddRows('horizontal')}
-
-                                        {canAccess("streamerConfig", "edit") && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={canAccess("streamerConfig", "edit") ? 11 : 10}
-                                                    align="center"
-                                                    sx={{
-                                                        backgroundColor: '#f5f5f5',
-                                                        borderBottom: '2px solid #e0e0e0',
-                                                        padding: '16px'
-                                                    }}
-                                                >
-                                                    <Button
-                                                        variant="outlined"
-                                                        startIcon={<AddIcon />}
-                                                        onClick={() => handleAddClick('horizontal')}
-                                                        disabled={addingHorizontal}
-                                                        sx={{
-                                                            textTransform: "none",
-                                                            borderColor: addingHorizontal ? '#cccccc' : '#1976d2',
-                                                            color: addingHorizontal ? '#cccccc' : '#1976d2',
-                                                            '&:hover': !addingHorizontal ? {
-                                                                backgroundColor: '#1976d2',
-                                                                color: 'white'
-                                                            } : {},
-                                                            '&:disabled': {
-                                                                backgroundColor: 'transparent'
-                                                            }
-                                                        }}
-                                                    >
-                                                        Add New Horizontal Configuration
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </>
+                                    {renderTableBody()}
                                 </TableBody>
                             </Table>
                         </TableContainer>
@@ -1928,7 +2298,9 @@ function StreamerConfigTable() {
                 <DialogContent>
                     <Typography>
                         {selectedRowToDelete && (() => {
-                            const currentData = selectedRowToDelete.signal_level === 'vertical' ? verticalData : horizontalData;
+                            const currentData = streamerType === 'TS Streamer'
+                                ? tsStreamerData
+                                : (selectedRowToDelete.signal_level === 'vertical' ? verticalData : horizontalData);
                             const config = currentData[selectedRowToDelete.configIndex];
                             const totalChannels = config?.channel_name?.length || 0;
 

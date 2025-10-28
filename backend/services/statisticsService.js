@@ -745,59 +745,66 @@ export const updateStreamer = async (streamerConfigId, updateData) => {
 
     // Build the dynamic SET clause for the UPDATE query
     const setClause = Object.keys(updateData)
-      .map(key => `${key} = :${key}`)
+      .map(key => `\`${key}\` = ?`)
       .join(', ');
 
-    // Add updated_at timestamp if you have that column
-    // NOTE: This logic is slightly flawed. If updateData has updated_at, you still need
-    // to include it in the setClause, but let's stick to the original intent for now:
-    const finalSetClause = updateData.updated_at
-      ? setClause
-      : `${setClause}, updated_at = CURRENT_TIMESTAMP`;
+    // Add updated_at timestamp
+    const finalSetClause = `${setClause}, updated_at = CURRENT_TIMESTAMP`;
 
-    // 1. Construct the UPDATE query (REMOVED RETURNING *)
+    // Construct the UPDATE query
     const updateQuery = `
       UPDATE streamer_config 
       SET ${finalSetClause}
-      WHERE streamer_config_id = :streamer_config_id
+      WHERE streamer_config_id = ?
     `;
 
-    // 2. Construct the SELECT query to fetch the updated row
-    const selectQuery = `
-      SELECT * FROM streamer_config 
-      WHERE streamer_config_id = :streamer_config_id
-    `;
+    // Prepare parameters for the query (using ? placeholders)
+    const params = [
+      ...Object.values(updateData),
+      streamerConfigId
+    ];
 
-    // Prepare parameters for the query
-    const params = {
-      streamer_config_id: streamerConfigId,
-      ...updateData
-    };
-
-    // 3. Execute the update query
-    // In MySQL, `db.query` for UPDATE typically returns an object with `affectedRows`.
+    // Execute the update query
     const updateResult = await db.query(updateQuery, params);
 
-    // Check if any row was updated (assuming affectedRows is available on updateResult)
+    // Check if any row was updated
     const affectedRows = updateResult?.affectedRows || 0;
 
     if (affectedRows === 0) {
-      // Execute a SELECT to confirm the ID doesn't exist, if desired, 
-      // but for simplicity, we throw if 0 rows were changed.
       throw new Error(`Streamer with ID ${streamerConfigId} not found or no changes were made`);
     }
 
-    // 4. Execute the select query to get the updated data
-    const selectResult = await db.query(selectQuery, { streamer_config_id: streamerConfigId });
+    // Construct the SELECT query to fetch the updated row
+    const selectQuery = `
+      SELECT * FROM streamer_config 
+      WHERE streamer_config_id = ?
+    `;
+
+    // Execute the select query to get the updated data
+    const selectResult = await db.query(selectQuery, [streamerConfigId]);
 
     // Check if the row was retrieved
     if (!selectResult || selectResult.length === 0) {
-      // This should ideally not happen if affectedRows > 0, but as a safeguard
       throw new Error(`Failed to retrieve updated streamer with ID ${streamerConfigId}`);
     }
 
+    const updatedStreamer = selectResult[0];
+
+    // Parse JSON fields back to objects if they exist
+    const jsonFields = ['channel_name', 'frequency', 'multicast_ip', 'port'];
+    jsonFields.forEach(field => {
+      if (updatedStreamer[field] && typeof updatedStreamer[field] === 'string') {
+        try {
+          updatedStreamer[field] = JSON.parse(updatedStreamer[field]);
+        } catch (err) {
+          console.warn(`Failed to parse ${field} as JSON:`, updatedStreamer[field]);
+          // Keep as string if parsing fails
+        }
+      }
+    });
+
     // Return the updated streamer data
-    return selectResult[0];
+    return updatedStreamer;
 
   } catch (err) {
     console.error("Error updating streamer configuration:", err);
@@ -808,9 +815,21 @@ export const updateStreamer = async (streamerConfigId, updateData) => {
     }
 
     // Handle database constraint violations or other errors
-    // Note: The original MySQL error (ER_PARSE_ERROR) will no longer occur here.
     if (err.message?.includes('unique constraint') || err.message?.includes('duplicate')) {
       throw new Error("Duplicate entry or constraint violation");
+    }
+
+    // Handle MySQL errors
+    if (err.code) {
+      switch (err.code) {
+        case 'ER_DUP_ENTRY':
+          throw new Error("Duplicate entry exists");
+        case 'ER_NO_REFERENCED_ROW':
+        case 'ER_NO_REFERENCED_ROW_2':
+          throw new Error("Referenced resort_id not found");
+        default:
+          throw new Error(`Database error: ${err.message}`);
+      }
     }
 
     throw new Error(`Failed to update streamer: ${err.message}`);
@@ -819,7 +838,6 @@ export const updateStreamer = async (streamerConfigId, updateData) => {
 
 export const deleteStreamerConfig = async (streamer_config_id) => {
   try {
-
     const result = await db.query(
       'DELETE FROM streamer_config WHERE streamer_config_id = ?',
       [streamer_config_id]
@@ -840,7 +858,6 @@ export const deleteStreamerConfig = async (streamer_config_id) => {
 
 export const deleteChannelFromConfig = async (streamer_config_id, channel_index) => {
   try {
-
     const configs = await db.query(
       'SELECT * FROM streamer_config WHERE streamer_config_id = ?',
       [streamer_config_id]
@@ -850,7 +867,7 @@ export const deleteChannelFromConfig = async (streamer_config_id, channel_index)
 
     const config = configs[0];
 
-    // Safely parse JSON columns
+    // Safely parse JSON columns - ADD FREQUENCY
     const channel_name = config.channel_name
       ? typeof config.channel_name === 'string'
         ? JSON.parse(config.channel_name)
@@ -869,14 +886,33 @@ export const deleteChannelFromConfig = async (streamer_config_id, channel_index)
         : config.port
       : [];
 
-    const maxChannels = Math.max(channel_name.length, multicast_ip.length, port.length);
+    // ADD: Parse frequency field
+    const frequency = config.frequency
+      ? typeof config.frequency === 'string'
+        ? JSON.parse(config.frequency)
+        : config.frequency
+      : [];
+
+    const maxChannels = Math.max(
+      channel_name.length,
+      multicast_ip.length,
+      port.length,
+      frequency.length // ADD frequency to max calculation
+    );
+
     if (channel_index < 0 || channel_index >= maxChannels) return false;
 
+    // Remove the channel from all arrays including frequency
     if (channel_index < channel_name.length) channel_name.splice(channel_index, 1);
     if (channel_index < multicast_ip.length) multicast_ip.splice(channel_index, 1);
     if (channel_index < port.length) port.splice(channel_index, 1);
+    if (channel_index < frequency.length) frequency.splice(channel_index, 1); // ADD: Remove frequency
 
-    const isEmpty = channel_name.length === 0 && multicast_ip.length === 0 && port.length === 0;
+    // Check if configuration is empty (consider frequency as well)
+    const isEmpty = channel_name.length === 0 &&
+      multicast_ip.length === 0 &&
+      port.length === 0 &&
+      frequency.length === 0; // ADD frequency to empty check
 
     if (isEmpty) {
       const result = await db.query(
@@ -885,14 +921,16 @@ export const deleteChannelFromConfig = async (streamer_config_id, channel_index)
       );
       return result.affectedRows > 0;
     } else {
+      // UPDATE: Include frequency in the UPDATE query
       const result = await db.query(
         `UPDATE streamer_config 
-         SET channel_name = ?, multicast_ip = ?, port = ?, updated_at = CURRENT_TIMESTAMP
+         SET channel_name = ?, multicast_ip = ?, port = ?, frequency = ?, updated_at = CURRENT_TIMESTAMP
          WHERE streamer_config_id = ?`,
         [
           JSON.stringify(channel_name),
           JSON.stringify(multicast_ip),
           JSON.stringify(port),
+          JSON.stringify(frequency), // ADD: Include frequency in update
           streamer_config_id
         ]
       );

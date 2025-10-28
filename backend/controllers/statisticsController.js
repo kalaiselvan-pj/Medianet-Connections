@@ -296,7 +296,6 @@ export const getAllStreamers = async (req, res) => {
   }
 };
 
-
 export const updateStreamer = async (req, res) => {
   try {
     const { id } = req.params; // streamer_config_id from URL parameter
@@ -312,11 +311,12 @@ export const updateStreamer = async (req, res) => {
       return res.status(400).json({ error: "No update data provided" });
     }
 
-    // Optional: Define allowed fields to prevent updating restricted fields
+    // Define allowed fields to prevent updating restricted fields
     const allowedFields = [
-      'resort_name',
+      'resort_id',
       'signal_level',
       'channel_name',
+      'frequency',
       'multicast_ip',
       'port',
       'stb_no',
@@ -331,7 +331,13 @@ export const updateStreamer = async (req, res) => {
     const filteredUpdateData = {};
     Object.keys(updateData).forEach(key => {
       if (allowedFields.includes(key)) {
-        filteredUpdateData[key] = updateData[key];
+        // Handle array fields - convert to JSON string if they are arrays/objects
+        if (['channel_name', 'frequency', 'multicast_ip', 'port'].includes(key) &&
+          Array.isArray(updateData[key])) {
+          filteredUpdateData[key] = JSON.stringify(updateData[key]);
+        } else {
+          filteredUpdateData[key] = updateData[key];
+        }
       }
     });
 
@@ -353,6 +359,10 @@ export const updateStreamer = async (req, res) => {
     // Handle specific error cases
     if (err.message?.includes('not found')) {
       return res.status(404).json({ error: "Streamer not found" });
+    }
+
+    if (err.message?.includes('Duplicate entry') || err.message?.includes('constraint violation')) {
+      return res.status(409).json({ error: "Duplicate entry or constraint violation" });
     }
 
     res.status(500).json({ error: "Failed to update streamer" });
