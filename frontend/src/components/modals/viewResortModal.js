@@ -215,7 +215,7 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                                             <FormControl fullWidth size="small">
                                                 <InputLabel>Category</InputLabel>
                                                 <Select
-                                                    value={viewResort.category || "medinaet" || "ooredoo"}
+                                                    value={viewResort.category || "medinaet" || "ooredoo" || "piracy"}
                                                     label="Category"
                                                     sx={{
                                                         backgroundColor: "white",
@@ -224,6 +224,7 @@ const ViewResortDialog = ({ viewDialogOpen, setViewDialogOpen, viewResort }) => 
                                                 >
                                                     <MenuItem value="Medianet">Medianet</MenuItem>
                                                     <MenuItem value="Ooredoo">Ooredoo</MenuItem>
+                                                    <MenuItem value="piracy">Piracy</MenuItem>
                                                 </Select>
                                             </FormControl>
 

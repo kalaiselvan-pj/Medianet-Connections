@@ -45,6 +45,7 @@ const ListView = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterLinkMargin, setFilterLinkMargin] = useState("All");
+  const [filterStreamerType, setFilterStreamerType] = useState("All");
   const [open, setOpen] = useState(false);
   const [selectedResortId, setSelectedResortId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -163,6 +164,9 @@ const ListView = () => {
     )
     .filter((item) =>
       filterLinkMargin === "All" || checkLinkMargin(item, filterLinkMargin)
+    )
+    .filter((item) =>
+      filterStreamerType === "All" || item.streamer_types === filterStreamerType
     );
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -173,6 +177,8 @@ const ListView = () => {
 
   const medianetCount = tableData.filter((r) => r.category === "Medianet").length;
   const ooredooCount = tableData.filter((r) => r.category === "Ooredoo").length;
+  const piracyCount = tableData.filter((r) => r.category === "piracy").length;
+
 
   // CSV export function - simplified without document links
   const exportToCSV = () => {
@@ -545,7 +551,7 @@ const ListView = () => {
         />
 
         {/* Category Filter */}
-        <FormControl size="small" sx={{ width: "9.5rem", position: "relative" }}>
+        {/* <FormControl size="small" sx={{ width: "9.5rem", position: "relative" }}>
           <FontAwesomeIcon
             icon={faFilter}
             style={{
@@ -578,6 +584,44 @@ const ListView = () => {
             <MenuItem value="All"><em>All</em></MenuItem>
             <MenuItem value="Medianet">Medianet</MenuItem>
             <MenuItem value="Ooredoo">Ooredoo</MenuItem>
+            <MenuItem value="piracy">Piracy</MenuItem>
+          </Select>
+        </FormControl> */}
+
+        {/* Streamer Type Filter */}
+        <FormControl size="small" sx={{ width: "9.5rem", position: "relative" }}>
+          <FontAwesomeIcon
+            icon={faFilter}
+            style={{
+              position: "absolute",
+              left: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              color: "rgb(43 142 228)",
+              fontSize: "20px",
+              zIndex: 1,
+            }}
+          />
+          <Select
+            value={filterStreamerType}
+            onChange={(e) => {
+              setFilterStreamerType(e.target.value);
+              setCurrentPage(1);
+            }}
+            displayEmpty
+            sx={{
+              pl: 4,
+              borderRadius: "10px",
+              fontWeight: "bold",
+              fontSize: "14px",
+              backgroundColor: "#f0f0f0",
+              height: "2.3rem",
+            }}
+          >
+            <MenuItem value="All"><em>All Streamers</em></MenuItem>
+            <MenuItem value="TS Streamer">TS Streamer</MenuItem>
+            <MenuItem value="S2 Streamer">S2 Streamer</MenuItem>
           </Select>
         </FormControl>
 
@@ -797,6 +841,7 @@ const ListView = () => {
         <div style={{ display: "flex", gap: 10, fontWeight: "bold", padding: "10px", borderRadius: 10 }}>
           <span style={{ color: "#569fdfff" }}>Medianet: {medianetCount}</span>
           <span style={{ color: "#569fdfff" }}>Ooredoo: {ooredooCount}</span>
+          <span style={{ color: "#569fdfff" }}>Piracy: {piracyCount}</span>
           <span style={{ color: "#638499ff" }}>Total: {tableData.length}</span>
         </div>
         <Stack spacing={2}>
