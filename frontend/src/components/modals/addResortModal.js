@@ -383,9 +383,9 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
 
   // Main save function
   const handleSaveResort = async () => {
-    // Only check for resort_name as required field
-    if (!formData.resort_name) {
-      return showToast("Please fill resort name", "error");
+    // Check for required fields: resort_name and category
+    if (!formData.resort_name || !formData.category) {
+      return showToast("Please fill resort name and category", "error");
     }
 
     const options = {
@@ -411,7 +411,15 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     formDataToSend.append('staff_area_tv', formData.staff_area_tv);
     formDataToSend.append('guest_area_tv', formData.guest_area_tv);
     formDataToSend.append('distribution_model', formData.distribution_model);
-    formDataToSend.append('streamer_types', formData.streamer_types); // New field
+
+    // Only append streamer_types if distribution model is medianet_streamer
+    if (formData.distribution_model === "medianet_streamer") {
+      formDataToSend.append('streamer_types', formData.streamer_types);
+    } else {
+      // Send empty string or don't send at all (depending on backend requirement)
+      formDataToSend.append('streamer_types', '');
+    }
+
     formDataToSend.append('tvro_type', formData.tvro_type);
     formDataToSend.append('tvro_dish', formData.tvro_dish);
     formDataToSend.append('horizontal_signal', formData.horizontal_signal);
@@ -505,6 +513,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     }
   };
 
+
   const bufferToUrl = (bufferData, mimeType) => {
     if (!bufferData || !bufferData.data) return null;
 
@@ -574,6 +583,8 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                   value={formData.resort_name}
                   onChange={handleChange}
                   required
+                  error={!formData.resort_name}
+
                 />
               </Grid>
 
@@ -598,14 +609,25 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <FormControl fullWidth size="small">
-                  <Select displayEmpty name="category" value={formData.category} onChange={handleChange}>
+                <FormControl fullWidth size="small" required error={!formData.category}>
+                  <Select
+                    displayEmpty
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                  >
                     <MenuItem value="" disabled>
                       Category
                     </MenuItem>
                     <MenuItem value="Medianet">Medianet</MenuItem>
                     <MenuItem value="Ooredoo">Ooredoo</MenuItem>
+                    <MenuItem value="piracy">piracy</MenuItem>
                   </Select>
+                  {!formData.category && (
+                    <Typography variant="caption" sx={{ ml: 1.5, mt: 0.5 }}>
+
+                    </Typography>
+                  )}
                 </FormControl>
               </Grid>
             </Grid>

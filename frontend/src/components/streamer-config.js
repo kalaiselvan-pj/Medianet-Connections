@@ -105,6 +105,25 @@ function StreamerConfigTable() {
             .catch(err => console.error(err));
     }, []);
 
+    useEffect(() => {
+        fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/getAllResorts`)
+            .then(res => res.json())
+            .then(data => {
+                const filtered = data.filter(resort => {
+                    if (!resort.streamer_types) return false;
+
+                    const streamerType = resort.streamer_types.toString().trim();
+                    return streamerType === "S2 Streamer" ||
+                        streamerType === "TS Streamer" ||
+                        streamerType === "s2 streamer" ||
+                        streamerType === "ts streamer";
+                });
+
+                setResorts(filtered);
+            })
+            .catch(err => console.error(err));
+    }, []);
+
     // Fetch data from backend API based on resort filter and streamer type
     useEffect(() => {
         const fetchStreamers = async () => {
