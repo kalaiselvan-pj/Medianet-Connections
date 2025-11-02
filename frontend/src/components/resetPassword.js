@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import "../styles/login.css"; // reuse login styles
 import { FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import SHA256 from "crypto-js/sha256";
-import { showToast } from "./common/toaster";
+import { showErrorToast, showToast } from "./common/toaster";
 
 export default function ResetPassword() {
   const { token } = useParams();
@@ -16,8 +16,15 @@ export default function ResetPassword() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Frontend validation
+    if (!password || !confirmPassword) {
+      showErrorToast("Please fill both password fields.", "error");
+      return;
+    }
+
     if (password !== confirmPassword) {
-      showToast("Passwords do not match", "error");
+      showErrorToast("Passwords do not match.", "error");
       return;
     }
 
@@ -30,18 +37,27 @@ export default function ResetPassword() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, password: hashedPassword }), // send hashed password
+          body: JSON.stringify({ token, password: hashedPassword }),
         }
       );
 
-      if (!res.ok) throw new Error("Failed to update password");
+      const data = await res.json();
 
-      showToast("Password changed successfully!", "success");
-      setTimeout(() => navigate("/login"), 2000);
+      if (res.ok && data.success) {
+        showToast("Password changed successfully!", "success");
+        setTimeout(() => navigate("/login"), 2000);
+      } else {
+        // API returned an error
+        const msg = data.message || "Failed to update password. Please try again.";
+        showToast(msg, "error");
+      }
     } catch (err) {
-      showToast(err.message || "Something went wrong", "error");
+      // Network or unexpected errors
+      console.error("Reset password error:", err);
+      showToast("Network error. Please try again.", "error");
     }
   };
+
 
   return (
     <div className="login-container">

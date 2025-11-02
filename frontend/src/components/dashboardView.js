@@ -6,11 +6,10 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
+  Cell,
+  ResponsiveContainer,
   PieChart,
   Pie,
-  Cell,
-  LabelList,
 } from "recharts";
 
 const COLORS = [
@@ -26,8 +25,9 @@ const COLORS = [
 
 const DashboardView = () => {
   const [data, setData] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeIndex, setActiveIndex] = useState(null);
+  const [activePieIndex, setActivePieIndex] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,22 +36,24 @@ const DashboardView = () => {
         if (!res.ok) throw new Error("Failed to fetch data");
         const json = await res.json();
 
-        // Group resorts by category or name
-        const grouped = json.reduce((acc, item) => {
-          const key = item.category || item.resort_name || "Unknown";
+        const groupedByCategory = json.reduce((acc, item) => {
+          const key = item.category || "Unknown";
           acc[key] = (acc[key] || 0) + 1;
           return acc;
         }, {});
 
-        const chartData = Object.entries(grouped).map(([key, count]) => ({
-          resort_name: key,
-          Resorts: count,
+        const chartData = Object.entries(groupedByCategory).map(([key, count]) => ({
+          name: key.length > 10 ? key.substring(0, 10) + "..." : key,
+          fullName: key,
+          value: count,
         }));
 
         setData(chartData);
+        setCategoryData(json);
       } catch (err) {
         console.error("Error loading data:", err);
         setData([]);
+        setCategoryData([]);
       } finally {
         setLoading(false);
       }
@@ -60,148 +62,416 @@ const DashboardView = () => {
     fetchData();
   }, []);
 
-  if (loading) return <p style={{ textAlign: "center" }}>Loading charts…</p>;
-  if (!data.length) return <p style={{ textAlign: "center" }}>No data available</p>;
+  const getDistributionStats = () => {
+    const stats = {
+      streamer: 0,
+      iptv: 0,
+      analog: 0,
+      hybrid: 0
+    };
 
-  // Total count for percentage calculation
-  const totalResorts = data.reduce((sum, item) => sum + item.Resorts, 0);
+    categoryData.forEach(item => {
+      const model = item.distribution_model?.toLowerCase() || '';
+      if (model.includes('streamer')) stats.streamer++;
+      else if (model.includes('iptv')) stats.iptv++;
+      else if (model.includes('analog')) stats.analog++;
+      else if (model.includes('hybrid')) stats.hybrid++;
+    });
+
+    return stats;
+  };
+
+  const distributionStats = getDistributionStats();
+  const totalResorts = data.reduce((sum, item) => sum + item.value, 0);
+
+  // Custom tooltip for pie chart
+  const CustomPieTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      const percent = ((data.value / totalResorts) * 100).toFixed(1);
+      return (
+        <div style={{
+          backgroundColor: '#fff',
+          padding: '8px',
+          border: '1px solid #ccc',
+          borderRadius: '4px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        }}>
+          <p style={{ margin: '0 0 4px 0', fontWeight: 'bold', color: '#333' }}>
+            {data.fullName}
+          </p>
+          <p style={{ margin: '0', color: '#666' }}>
+            Resorts: <strong>{data.value}</strong>
+          </p>
+          <p style={{ margin: '0', color: '#666' }}>
+            Percentage: <strong>{percent}%</strong>
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const handlePieEnter = (_, index) => {
+    setActivePieIndex(index);
+  };
+
+  const handlePieLeave = () => {
+    setActivePieIndex(null);
+  };
+
+  if (loading) return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      fontSize: '14px',
+      color: '#666'
+    }}>
+      Loading...
+    </div>
+  );
+
+  if (!data.length) return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      fontSize: '14px',
+      color: '#666'
+    }}>
+      No data available
+    </div>
+  );
 
   return (
     <div
       style={{
+        padding: "12px",
+        backgroundColor: "#f8f9fa",
+        height: "100vh",
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        height: "100vh",
-        overflow: "scroll",
-        backgroundColor: "#f8f9fa",
+        overflow: "hidden",
+        gap: "20px",
       }}
     >
-      <h3>Bar Chart Connections</h3>
-      {/* ===== Bar Chart Section ===== */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: "20px",
-          backgroundColor: "#fff",
-          borderRadius: "15px",
-          boxShadow: "0 4px 15px rgba(0, 0, 0, 0.1)",
-          width: "fit-content",
-          margin: "20px auto",
-        }}
-      >
-        <BarChart width={700} height={400} data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="resort_name" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="Resorts" fill="#569fdfff" barSize={140}>
-            <LabelList dataKey="Resorts" position="top" />
-          </Bar>
-        </BarChart>
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: "8px 12px",
+        backgroundColor: "#fff",
+        borderRadius: "6px",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+      }}>
+        <div>
+          <h1 style={{
+            margin: 0,
+            color: "#1a1a1a",
+            fontSize: "16px",
+            fontWeight: "600"
+          }}>
+            Resort Analytics
+          </h1>
+          <p style={{
+            margin: "2px 0 0 0",
+            color: "#666",
+            fontSize: "12px"
+          }}>
+            Complete overview
+          </p>
+        </div>
+        <div style={{
+          display: 'flex',
+          gap: '15px',
+          alignItems: 'center'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: "12px",
+              color: "#666",
+              marginBottom: "2px"
+            }}>
+              Categories
+            </div>
+            <div style={{
+              fontSize: "17px",
+              fontWeight: "700",
+              color: "#569fdfff"
+            }}>
+              {data.length}
+            </div>
+          </div>
+          <div style={{
+            width: '1px',
+            height: '20px',
+            backgroundColor: '#e0e0e0'
+          }}></div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: "12px",
+              color: "#666",
+              marginBottom: "2px"
+            }}>
+              Total Resorts
+            </div>
+            <div style={{
+              fontSize: "17px",
+              fontWeight: "700",
+              color: "#569fdfff"
+            }}>
+              {totalResorts}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* ===== Pie Chart Section ===== */}
-      <h3 style={{ textAlign: "center", color: "#333", marginBottom: "1rem", fontWeight: "bold" }}>
-        Pie Chart Connections
-      </h3>
+      {/* Main Content - Three Columns */}
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "#fff",
-          borderRadius: "15px",
-          boxShadow: "0 4px 15px rgba(0, 0, 0, 0.1)",
-          padding: "20px 40px",
-          width: "fit-content",
-          margin: "20px auto",
+          gap: "12px",
+          flex: 1,
+          minHeight: 0,
         }}
       >
-        {/* Pie Chart */}
-        <div >
-          <PieChart width={400} height={400}>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              outerRadius={120}
-              dataKey="Resorts"
-              labelLine={false}
-              onClick={(_, index) => setActiveIndex(index)}
-            >
-              {data.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={COLORS[index % COLORS.length]}
-                  stroke={index === activeIndex ? "#000" : "#fff"}
-                  strokeWidth={index === activeIndex ? 3 : 1}
+        {/* Bar Chart - Left */}
+        <div
+          style={{
+            flex: 1.2,
+            backgroundColor: "#fff",
+            borderRadius: "6px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+            padding: "10px",
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+            height: "75vh"
+          }}
+        >
+          <h3 style={{
+            margin: "0 0 8px 0",
+            color: "#333",
+            fontSize: "13px",
+            fontWeight: "600"
+          }}>
+            Resorts by Category
+          </h3>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data}
+                margin={{ top: 5, right: 5, left: 0, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="1 2" stroke="#f0f0f0" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  fontSize="10px"
+                  tick={{ fill: '#666' }}
+                  interval={0}
+                  height={35}
                 />
-              ))}
-
-              {/*  React LabelList with Resort Name + Percentage */}
-              <LabelList
-                position="inside"
-                content={({ x, y, value, index }) => {
-                  const name = data[index]?.resort_name || "";
-                  const percent = ((value / totalResorts) * 100).toFixed(0);
-                  return (
-                    <text
-                      x={x}
-                      y={y}
-                      fill="#fff"
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      style={{
-                        fontWeight: "bold",
-                        fontSize: "13px",
-                        opacity: index === activeIndex ? 1 : 0.9,
-                      }}
-                    >
-                      {`${name} (${percent}%)`}
-                    </text>
-                  );
-                }}
-              />
-            </Pie>
-            <Tooltip />
-          </PieChart>
+                <YAxis
+                  fontSize="10px"
+                  tick={{ fill: '#666' }}
+                  width={25}
+                />
+                <Tooltip
+                  formatter={(value) => [value, 'Resorts']}
+                  labelFormatter={(value, payload) => {
+                    const item = payload?.[0]?.payload;
+                    return item?.fullName || value;
+                  }}
+                  contentStyle={{
+                    borderRadius: "4px",
+                    border: "none",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    fontSize: "11px",
+                    padding: "4px 6px"
+                  }}
+                />
+                <Bar
+                  dataKey="value"
+                  radius={[2, 2, 0, 0]}
+                  barSize={20}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* Legend (Clickable List) */}
-        <div style={{ marginTop: "2rem" }}>
-          <ul
+        {/* Pie Chart - Middle */}
+        <div
+          style={{
+            flex: 0.8,
+            backgroundColor: "#fff",
+            borderRadius: "6px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+            padding: "10px",
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+            height: "75vh"
+          }}
+        >
+          <h3 style={{
+            margin: "0 0 8px 0",
+            color: "#333",
+            fontSize: "13px",
+            fontWeight: "600"
+          }}>
+            Distribution
+          </h3>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={35}
+                  outerRadius={70}
+                  paddingAngle={1}
+                  dataKey="value"
+                  onMouseEnter={handlePieEnter}
+                  onMouseLeave={handlePieLeave}
+                >
+                  {data.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                      stroke={index === activePieIndex ? "#000" : "#fff"}
+                      strokeWidth={index === activePieIndex ? 2 : 1}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomPieTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '5px',
+            fontSize: '13px',
+            marginTop: '5px'
+          }}>
+            {data.slice(0, 4).map((item, index) => (
+              <div key={index} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <div style={{
+                  width: '13px',
+                  height: '13px',
+                  backgroundColor: COLORS[index % COLORS.length],
+                  borderRadius: '2px'
+                }}></div>
+                <span style={{ color: '#666', fontSize: "12px" }}>{item.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Distribution Models - Right - Single Column */}
+        <div
+          style={{
+            width: "180px",
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div
             style={{
-              listStyle: "none",
-              padding: 0,
+              backgroundColor: "#fff",
+              borderRadius: "6px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+              padding: "10px",
+              height: "75vh",
               display: "flex",
               flexDirection: "column",
-              gap: "10px",
-              margin: 0,
             }}
           >
-            {data.map((item, index) => {
-              const percent = ((item.Resorts / totalResorts) * 100).toFixed(0);
-              return (
-                <li
-                  key={index}
-                  onClick={() => setActiveIndex(index)}
+            <h3 style={{
+              margin: "0 0 12px 0",
+              color: "#333",
+              fontSize: "13px",
+              fontWeight: "600"
+            }}>
+              Distribution Models
+            </h3>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                flex: 1,
+              }}
+            >
+              {[
+                { key: "streamer", label: "Streamer", color: "#1976d2" },
+                { key: "iptv", label: "IPTV", color: "#388e3c" },
+                { key: "analog", label: "Analog", color: "#f57c00" },
+                { key: "hybrid", label: "Hybrid", color: "#c2185b" },
+              ].map((model) => (
+                <div
+                  key={model.key}
                   style={{
-                    cursor: "pointer",
-                    fontWeight: index === activeIndex ? "bold" : "normal",
-                    color: COLORS[index % COLORS.length],
-                    textDecoration: index === activeIndex ? "underline" : "none",
-                    fontSize: "16px",
+                    backgroundColor: "#fafafa",
+                    borderRadius: "4px",
+                    padding: "10px",
+                    borderLeft: `3px solid ${model.color}`,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    flex: 1,
+                    minHeight: "60px",
                   }}
                 >
-                  {item.resort_name}: {item.Resorts} ({percent}%)
-                </li>
-              );
-            })}
-          </ul>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        color: "#666",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {model.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "17px",
+                        fontWeight: "700",
+                        color: model.color,
+                        lineHeight: "1",
+                      }}
+                    >
+                      {distributionStats[model.key]}
+                    </div>
+                  </div>
+                  {/* <div
+                    style={{
+                      fontSize: "11px",
+                      color: "#999",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {((distributionStats[model.key] / totalResorts) * 100).toFixed(1)}% of total
+                  </div> */}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

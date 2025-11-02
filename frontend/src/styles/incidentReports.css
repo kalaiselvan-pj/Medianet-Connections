@@ -7,12 +7,11 @@
     gap: 15px;
 }
 
-/* Wrapper-like styling for MUI TextField */
+/* Search input styling */
 .mui-search-input {
     width: 15rem;
 }
 
-/* Remove borders and outline, match your old style */
 .mui-search-input .MuiOutlinedInput-root {
     background: #f0f0f0;
     border-radius: 8px;
@@ -30,7 +29,7 @@
     border: none !important;
 }
 
-/* Icons color and spacing */
+/* Icons color */
 .mui-search-icon {
     color: #666;
     margin-right: 4px;
@@ -40,7 +39,7 @@
     color: #666;
 }
 
-/* Input text and placeholder */
+/* Input text */
 .mui-search-input input {
     border: none;
     outline: none;
@@ -54,9 +53,10 @@
     font-size: 0.8rem;
 }
 
+/* Add button */
 .MuiButton-root.add-btn {
     text-transform: none;
-    background-color: #2e86de;
+    background-color: #1976d2;
     color: white;
     border: none;
     padding: 8px 12px;
@@ -70,84 +70,69 @@
     height: 2.3rem;
     width: 5rem;
     transition: background-color 0.3s ease;
-    /* smooth hover transition */
 }
 
 .MuiButton-root.add-btn:hover {
     background-color: #1e5dbd;
-    /* hover color */
 }
 
-/*Incident table*/
+/* Table container with horizontal and vertical scroll */
 .table-container-custom {
     width: 100%;
-    max-height: 75vh;
-    overflow-y: scroll;
+    height: 75vh;
+    overflow: auto;
 }
 
+/* Ensure table takes full width and enables horizontal scroll */
 .table-container-custom table {
-    height: 100%;
-}
-
-/* Action buttons */
-.action-btn {
-    background-color: transparent;
-    border: none;
-    padding: 6px 12px;
-    margin-right: 6px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.action-btn:hover {
-    opacity: 0.85;
-}
-
-.clear-icon {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.clear-icon:hover {
-    color: #333;
-}
-
-.popup-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
+    min-width: 1000px;
     width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
 }
 
-.popup-content {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    width: 52%;
-    max-height: 80vh;
-    overflow-y: auto;
-}
-
-.close-btn {
-    bottom: 20px;
-    right: 20px;
-    background: #d32f2f;
+/* Table header styling - REMOVED BORDER BOTTOM */
+.table-container-custom .MuiTableCell-head {
+    background-color: #569fdfff;
     color: white;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: 37rem;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: none !important;
+    /* Remove dark line below header */
 }
 
+/* Table row hover effect */
+.table-container-custom .MuiTableBody-root .MuiTableRow-root:hover {
+    background-color: #f5f5f5;
+}
+
+/* Ensure consistent cell alignment */
+/* .table-container-custom .MuiTableCell-body {
+    vertical-align: middle;
+} */
+
+/* Footer section */
+.table-footer {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.stats-count {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.pagination-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Status filter colors */
 .status-new {
     color: #007bff !important;
     font-weight: 500;

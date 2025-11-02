@@ -21,42 +21,40 @@ import CloseIcon from "@mui/icons-material/Close";
 
 
 const RbacUserModal = ({ isOpen, onClose, onSave, userData }) => {
-    const [role, setRole] = useState("");
     const [permissions, setPermissions] = useState({
         dashboard: { view: false, edit: false },
         resortList: { view: false, edit: false },
         resortIncidents: { view: false, edit: false },
         streamerConfig: { view: false, edit: false },
+        rbacManagement: { view: false, edit: false },
     });
     const [originalData, setOriginalData] = useState(null);
     const [isChanged, setIsChanged] = useState(false); // track changes
 
     useEffect(() => {
         if (userData) {
-            const initRole = userData.role || "";
             const initPermissions =
                 userData.permission || {
                     dashboard: { view: false, edit: false },
                     resortList: { view: false, edit: false },
                     resortIncidents: { view: false, edit: false },
+                    streamerConfig: { view: false, edit: false },
+                    rbacManagement: { view: false, edit: false },
                 };
-            setRole(initRole);
             setPermissions(initPermissions);
-            setOriginalData({ role: initRole, permissions: initPermissions });
+            setOriginalData({ permissions: initPermissions });
             setIsChanged(false);
         }
     }, [userData]);
 
-    // Detect changes in role or permissions
+    // Detect changes in permissions
     useEffect(() => {
         if (!originalData) return;
 
-        const hasChanged =
-            role !== originalData.role ||
-            JSON.stringify(permissions) !== JSON.stringify(originalData.permissions);
+        const hasChanged = JSON.stringify(permissions) !== JSON.stringify(originalData.permissions);
 
         setIsChanged(hasChanged);
-    }, [role, permissions, originalData]);
+    }, [permissions, originalData]);
 
     const handleToggle = (section, type) => {
         setPermissions((prev) => ({
@@ -69,17 +67,10 @@ const RbacUserModal = ({ isOpen, onClose, onSave, userData }) => {
     };
 
     const handleSave = () => {
-        if (!role) {
-            // Toast for error
-            showToast("Please select a role!", "error");
-            return;
-        }
-
         fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/updateUser/${userData.login_id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                role: role,
                 permissions: permissions
             }),
 
@@ -98,7 +89,7 @@ const RbacUserModal = ({ isOpen, onClose, onSave, userData }) => {
 
 
     return (
-        <Dialog open={isOpen} onClose={onClose} maxWidth="sm" fullWidth>
+        <Dialog open={isOpen} onClose={onClose} fullWidth>
             <DialogTitle
                 sx={{
                     m: 0,
@@ -121,24 +112,8 @@ const RbacUserModal = ({ isOpen, onClose, onSave, userData }) => {
                 </Tooltip>
             </DialogTitle>
             <DialogContent dividers>
-                {/* Role Selection */}
-                {/* <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                    Role
-                </Typography>
 
-                <FormControl fullWidth={false} sx={{ width: "20vw", marginBottom: "10px" }}>
-                    <InputLabel>Role</InputLabel>
-                    <Select labelId="role-label"
-                        value={role} label="Role" onChange={(e) => setRole(e.target.value)}>
-
-                        <MenuItem value="admin">Admin</MenuItem>
-                        <MenuItem value="manager">Manager</MenuItem>
-                        <MenuItem value="sales">Sales</MenuItem>
-                        <MenuItem value="finance">Finance</MenuItem>
-                    </Select>
-                </FormControl> */}
-
-                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                <Typography variant="h6" gutterBottom>
                     Permissions
                 </Typography>
 

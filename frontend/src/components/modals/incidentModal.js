@@ -7,9 +7,6 @@ import {
     Button,
     FormLabel,
     TextField,
-    RadioGroup,
-    FormControlLabel,
-    Radio,
     Stack,
     Chip,
     Autocomplete,
@@ -26,11 +23,14 @@ import { showToast } from "../common/toaster";
 const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => {
     const [resorts, setResorts] = useState([]);
     const [resortName, setResortName] = useState("");
-    const [category, setCategory] = useState("Medianet");
-    const [notes, setIncident] = useState("");
+    const [incident, setIncident] = useState("");
     const [status, setStatus] = useState("New");
     const [date, setDate] = useState(dayjs());
     const [isFormDirty, setIsFormDirty] = useState(false); // track changes
+    const [assignedTo, setAssignedTo] = useState("");
+    const [ContactName, setContactName] = useState("");
+    const [ContactNumber, setContactNumber] = useState("");
+
 
     // Fetch resorts on mount
     useEffect(() => {
@@ -40,6 +40,11 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
             .catch(err => console.error(err));
     }, []);
 
+    // Helper function for capitalizing the first letter
+    const capitalizeFirstLetter = (value) => {
+        if (!value) return "";
+        return value.charAt(0).toUpperCase() + value.slice(1);
+    };
 
     // assume you have incidentData?.status coming from your API
     const dbStatus = incidentData?.status;
@@ -49,17 +54,21 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
             if (incidentData) {
                 // Editing existing incident
                 setResortName(incidentData.resort_name || "");
-                setCategory(incidentData.category || "Medianet");
-                setIncident(incidentData.notes || "");
+                setIncident(incidentData.incident || "");
                 setStatus(incidentData.status || "New");
                 setDate(dayjs(incidentData.incident_date));
+                setAssignedTo(incidentData.assigned_to || "");
+                setContactName(incidentData.contact_name || "");
+                setContactNumber(incidentData.contact_number || "");
             } else {
                 // Adding new incident → reset all fields
                 setResortName("");
-                setCategory("Medianet");
                 setIncident("");
                 setStatus("New");
                 setDate(dayjs());
+                setAssignedTo("");
+                setContactName("");
+                setContactNumber("");
             }
             setIsFormDirty(false); // reset change tracker
         }
@@ -69,34 +78,38 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
     // Check if any field has changed compared to original incidentData
     useEffect(() => {
         if (!incidentData) {
-            // For new incident, enable save if any field has value
-            setIsFormDirty(resortName || notes || category !== "Medianet" || status !== "New");
-        } else {
+            // For new incident, enable save if any required field has value
             setIsFormDirty(
-                resortName !== incidentData.resort_name ||
-                category !== incidentData.category ||
-                notes !== incidentData.notes ||
-                status !== incidentData.status ||
+                resortName || incident || assignedTo || ContactName || ContactNumber
+            );
+        } else {
+            // Check for changes in existing fields
+            const existingResortName = incidentData.resort_name || "";
+            const existingIncident = incidentData.incident || "";
+            const existingStatus = incidentData.status || "New";
+            const existingAssignedTo = incidentData.assigned_to || "";
+            const existingContactName = incidentData.contact_name || "";
+            const existingContactNumber = incidentData.contact_number || "";
+
+            setIsFormDirty(
+                resortName !== existingResortName ||
+                incident !== existingIncident ||
+                status !== existingStatus ||
+                assignedTo !== existingAssignedTo ||
+                ContactName !== existingContactName ||
+                ContactNumber !== existingContactNumber ||
                 !dayjs(incidentData.incident_date).isSame(date, "day")
             );
         }
-    }, [resortName, category, notes, status, date, incidentData]);
+    }, [resortName, incident, status, date, incidentData, assignedTo, ContactName, ContactNumber]);
 
     const handleSave = async () => {
-        // if (!resortName) {
-        //     showToast("Please select a resort", "error");
-        //     return;
-        // }
-
         let hasError = false;
+
+        // --- MANDATORY FIELDS VALIDATION ---
 
         if (!resortName || resortName.trim() === "") {
             showToast("Resort name is required", "error");
-            hasError = true;
-        }
-
-        if (!category || category.trim() === "") {
-            showToast("Category is required", "error");
             hasError = true;
         }
 
@@ -105,12 +118,27 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
             hasError = true;
         }
 
-        if (!notes || notes.trim() === "") {
+        if (!incident || incident.trim() === "") {
             showToast("Incident description is required", "error");
             hasError = true;
         }
 
-        if (hasError) return; // Stop if any field missing
+        if (!assignedTo || assignedTo.trim() === "") {
+            showToast("Assigned To is required", "error");
+            hasError = true;
+        }
+
+        if (!ContactName || ContactName.trim() === "") {
+            showToast("Contact Name is required", "error");
+            hasError = true;
+        }
+
+        if (!ContactNumber || ContactNumber.trim() === "") {
+            showToast("Contact Number is required", "error");
+            hasError = true;
+        }
+
+        if (hasError) return; // Stop if any mandatory field is missing
 
         // Find the resort object from the name
         let selectedResort = resorts.find(r => r.resort_name === resortName);
@@ -124,7 +152,6 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
         }
 
 
-        // const selectedResort = resorts.find(r => r.resort_name === resortName);
         if (!selectedResort) {
             showToast("Selected resort is invalid", "error");
             return;
@@ -133,14 +160,16 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
         const incidentToSave = {
             resort_id: selectedResort.resort_id,
             resort_name: resortName,
-            category,
-            notes,
+            incident,
             status,
             incident_date: date.format("YYYY-MM-DD"),
+            assigned_to: assignedTo,
+            contact_name: ContactName,
+            contact_number: ContactNumber,
         };
 
         let method = "POST";
-        let url = `${process.env.REACT_APP_LOCALHOST}/statistics/resortIncidentReports`;
+        let url = `${process.env.REACT_APP_LOCALHOST}/statistics/addIncidentReports`;
 
         if (incidentData && incidentData.incident_id) {
             method = "PUT";
@@ -169,10 +198,12 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
             // Reset fields after save (only for new incident)
             if (!incidentData) {
                 setResortName("");
-                setCategory("Medianet");
                 setIncident("");
                 setStatus("New");
                 setDate(dayjs());
+                setAssignedTo("");
+                setContactName("");
+                setContactNumber("");
             }
             onClose();
         } catch (error) {
@@ -181,9 +212,9 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
         }
     };
 
-    const rowStyle = { display: "flex", gap: "2rem" };
+    const rowStyle = { display: "flex", gap: "2rem", marginBottom: "1rem" };
     const fieldStyle = { flex: 1, display: "flex", flexDirection: "column" };
-    const notesStyle = { marginTop: "1rem", display: "flex", flexDirection: "column" };
+    const IncidentStyle = { marginTop: "1rem", display: "flex", flexDirection: "column" };
     const chipStackStyle = { flexDirection: "row", gap: "0.5rem", marginTop: "0.5rem" };
 
     return (
@@ -200,7 +231,8 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-            }}>{incidentData ? "Edit Incident Report" : "Add New Incident Report"}  <Tooltip title="Close" arrow>
+            }}>{incidentData ? "Edit Incident Report" : "Add New Incident Report"}
+                <Tooltip title="Close" arrow>
                     <IconButton
                         aria-label="close"
                         onClick={onClose}
@@ -214,7 +246,7 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
             </DialogTitle>
             <DialogContent dividers>
 
-                {/* Row 1: Resort Name + Category */}
+                {/* Row 1: Resort Name + Assigned To */}
                 <div style={rowStyle}>
                     <div style={fieldStyle}>
                         <FormLabel>Resort Name</FormLabel>
@@ -228,15 +260,43 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
                         />
                     </div>
                     <div style={fieldStyle}>
-                        <FormLabel>Category</FormLabel>
-                        <RadioGroup row value={category} onChange={(e) => setCategory(e.target.value)}>
-                            <FormControlLabel value="Medianet" control={<Radio />} label="Medianet" />
-                            <FormControlLabel value="Ooredoo" control={<Radio />} label="Ooredoo" />
-                        </RadioGroup>
+                        <FormLabel>Assigned To</FormLabel>
+                        <TextField
+                            placeholder="Enter Name"
+                            fullWidth
+                            margin="dense"
+                            value={assignedTo}
+                            onChange={(e) => setAssignedTo(capitalizeFirstLetter(e.target.value))}
+
+                        />
                     </div>
                 </div>
 
-                {/* Row 2: Date + Status */}
+                {/* Row 2: Resort Contact Name + Number */}
+                <div style={rowStyle}>
+                    <div style={fieldStyle}>
+                        <FormLabel>Contact Name</FormLabel>
+                        <TextField
+                            placeholder="Enter contact name"
+                            fullWidth
+                            margin="dense"
+                            value={ContactName}
+                            onChange={(e) => setContactName(capitalizeFirstLetter(e.target.value))}
+                        />
+                    </div>
+                    <div style={fieldStyle}>
+                        <FormLabel>Contact Number</FormLabel>
+                        <TextField
+                            placeholder="Enter contact number"
+                            fullWidth
+                            margin="dense"
+                            value={ContactNumber}
+                            onChange={(e) => setContactNumber(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Row 3: Date + Status */}
                 <div style={rowStyle}>
                     <div style={fieldStyle}>
                         <FormLabel>Date</FormLabel>
@@ -256,16 +316,14 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
                                 color={status === "New" ? "primary" : "default"}
                                 onClick={() => setStatus("New")}
                                 clickable={!!incidentData}
-                                disabled={dbStatus === "Completed"} // disable when completed
+                                disabled={dbStatus === "Completed"}
                             />
                             <Chip
                                 label="Pending"
                                 color={status === "Pending" ? "warning" : "default"}
                                 onClick={() => setStatus("Pending")}
                                 clickable={!!incidentData}
-                                // disabled={!incidentData}
-                                disabled={!incidentData || dbStatus === "Completed"} // disable when completed
-
+                                disabled={!incidentData || dbStatus === "Completed"}
                             />
                             <Chip
                                 label="Completed"
@@ -278,27 +336,17 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
                     </div>
                 </div>
 
-                {/* Row 3: Notes */}
-                <div style={notesStyle}>
+                {/* Row 4: incident (Incident Description) */}
+                <div style={IncidentStyle}>
                     <FormLabel>Incident</FormLabel>
                     <TextField
                         placeholder="Enter Incidents"
                         multiline
                         rows={4}
                         variant="outlined"
-                        // fullWidth
-                        height="30vh"
                         margin="dense"
-                        value={notes}
-                        // onChange={(e) => setIncident(e.target.value)}
-                        onChange={(e) => {
-                            const value = e.target.value;
-                            // Capitalize the first letter only
-                            const capitalized =
-                                value.charAt(0).toUpperCase() + value.slice(1);
-                            setIncident(capitalized);
-                        }}
-                    />
+                        value={incident}
+                        onChange={(e) => setIncident(capitalizeFirstLetter(e.target.value))} />
                 </div>
 
             </DialogContent>
@@ -309,7 +357,7 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
                     onClick={handleSave}
                     variant="contained"
                     color="primary"
-                    disabled={!isFormDirty} // disabled if no changes
+                    disabled={!isFormDirty}
                 >
                     {incidentData ? "Update" : "Save"}
                 </Button>
@@ -319,4 +367,3 @@ const IncidentModal = ({ open, onClose, onSave, incidentData, dialogWidth }) => 
 };
 
 export default IncidentModal;
-

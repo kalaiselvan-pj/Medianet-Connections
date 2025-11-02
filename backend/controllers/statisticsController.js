@@ -57,7 +57,6 @@ export const resetPassword = async (req, res) => {
 //Add user API
 const addUser = async (req, res) => {
   try {
-    // const { resort_name, category } = req.body;
     const newUser = await statisticsService.addUser(req.body);
     res.json(newUser);
   } catch (err) {
@@ -79,6 +78,7 @@ const getAllUsers = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { login_id } = req.params;
+
     await statisticsService.updateUser(login_id, req.body);
     res.json({ message: "user updated successfully" });
   } catch (err) {
@@ -109,18 +109,47 @@ export const dashboard = async (req, res) => {
 };
 
 // Add Resort API
-const addResort = async (req, res) => {
+export const addResort = async (req, res) => {
   try {
-    const data = req.body;
-    const newResort = await statisticsService.addResort(data);
-    res.json(newResort);
+    const data = {
+      ...req.body,
+      survey_form: req.files?.survey_form?.[0]?.buffer || null,
+      service_acceptance_form: req.files?.service_acceptance_form?.[0]?.buffer || null,
+      dish_antena_image: req.files?.dish_antena_image?.[0]?.buffer || null,
+      signal_image: req.files?.signal_image?.[0]?.buffer || null
+    };
+
+    const result = await statisticsService.addResort(data);
+    res.json(result);
   } catch (err) {
+    console.error("Error adding resort:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// Get All Resorts API
-const getResorts = async (req, res) => {
+//update resort API
+export const updateResort = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const data = {
+      ...req.body,
+      survey_form: req.files?.survey_form?.[0]?.buffer || null,
+      service_acceptance_form: req.files?.service_acceptance_form?.[0]?.buffer || null,
+      dish_antena_image: req.files?.dish_antena_image?.[0]?.buffer || null,
+      signal_image: req.files?.signal_image?.[0]?.buffer || null
+    };
+
+    await statisticsService.updateResort(id, data);
+    res.json({ message: "Resort updated successfully" });
+  } catch (err) {
+    console.error("Error updating resort:", err);
+    res.status(500).json({ error: "Failed to update resort" });
+  }
+};
+
+//get all resort details API
+export const getResorts = async (req, res) => {
   try {
     const resorts = await statisticsService.getResorts();
     res.json(resorts);
@@ -129,20 +158,8 @@ const getResorts = async (req, res) => {
   }
 };
 
-//Update Resort API
-const updateResort = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = req.body;
-    await statisticsService.updateResort(id, data);
-    res.json({ message: "Resort updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to update resort" });
-  }
-};
-
-// Delete Resort API
-const deleteResort = async (req, res) => {
+//delete resort API
+export const deleteResort = async (req, res) => {
   try {
     const { id } = req.params;
     await statisticsService.deleteResort(id);
@@ -196,20 +213,83 @@ const deleteResortIncident = async (req, res) => {
   }
 };
 
-export const getStreamers = async (req, res) => {
+
+export const addStreamerConfig = async (req, res) => {
   try {
-    // FIX: Get resort_name from req.query (query parameters in the URL)
-    const { resort_name } = req.query;
+    const data = req.body;
+    const newStreamer = await statisticsService.addStreamerConfig(data);
+    res.json(newStreamer);
+  } catch (err) {
+    console.error("Error adding streamer config:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
 
-    // console.log(req.query, 'Query parameters received'); // This will now show the resort_name
+export const deleteStreamerConfig = async (req, res) => {
+  try {
+    // Safely extract params and body/query
+    const { streamer_config_id } = req.params;
+    const channel_index = req.body?.channel_index ?? req.query?.channel_index;
 
-    if (!resort_name) {
-      // Optional: Return a 400 Bad Request if the required parameter is missing
-      return res.status(400).json({ error: "Missing resort_name query parameter" });
+
+    if (!streamer_config_id) {
+      return res.status(400).json({ message: "Missing streamer_config_id parameter" });
     }
 
-    const { vertical, horizontal } = await statisticsService.getAllStreamers(resort_name);
-    res.json({ vertical, horizontal });
+    // Keep UUID as string, do not parseInt
+    const configId = streamer_config_id;
+
+    if (channel_index !== undefined && channel_index !== null) {
+      const channelIndex = parseInt(channel_index, 10);
+      if (isNaN(channelIndex) || channelIndex < 0) {
+        return res.status(400).json({
+          message: "Invalid channel_index format. Must be a non-negative number.",
+        });
+      }
+
+      const success = await statisticsService.deleteChannelFromConfig(configId, channelIndex);
+
+      if (!success) {
+        return res.status(404).json({
+          message: "Streamer config not found or channel index invalid",
+        });
+      }
+
+      return res.status(200).json({ message: "Channel deleted successfully" });
+    } else {
+      // Delete entire configuration
+      const success = await statisticsService.deleteStreamerConfig(configId);
+
+      if (!success) {
+        return res.status(404).json({ message: "Streamer config not found" });
+      }
+
+      return res.status(200).json({ message: "Streamer config deleted successfully" });
+    }
+  } catch (error) {
+    console.error("Error in deleteStreamerConfig:", error);
+    res.status(500).json({
+      message: "Error processing delete request",
+      error: error.message,
+    });
+  }
+};
+
+export const getAllStreamers = async (req, res) => {
+  try {
+    // FIX: Get resort_name from req.query (query parameters in the URL)
+    const { resort_id } = req.query;
+
+    if (!resort_id) {
+      // Optional: Return a 400 Bad Request if the required parameter is missing
+      return res.status(400).json({ error: "Missing resort_id query parameter" });
+    }
+
+    // Destructure tsStreamer from the service response
+    const { vertical, horizontal, tsStreamer } = await statisticsService.getAllStreamers(resort_id);
+
+    // Include tsStreamer in the response
+    res.json({ vertical, horizontal, tsStreamer });
   } catch (err) {
     console.error("Error in getStreamers controller:", err);
     res.status(500).json({ error: "Failed to fetch streamer data" });
@@ -221,8 +301,6 @@ export const updateStreamer = async (req, res) => {
     const { id } = req.params; // streamer_config_id from URL parameter
     const updateData = req.body; // Update fields from request body
 
-    console.log(`Updating streamer ID: ${id}`, updateData);
-
     // Validate that ID exists
     if (!id) {
       return res.status(400).json({ error: "Missing streamer ID parameter" });
@@ -233,11 +311,12 @@ export const updateStreamer = async (req, res) => {
       return res.status(400).json({ error: "No update data provided" });
     }
 
-    // Optional: Define allowed fields to prevent updating restricted fields
+    // Define allowed fields to prevent updating restricted fields
     const allowedFields = [
-      'resort_name',
+      'resort_id',
       'signal_level',
       'channel_name',
+      'frequency',
       'multicast_ip',
       'port',
       'stb_no',
@@ -252,7 +331,13 @@ export const updateStreamer = async (req, res) => {
     const filteredUpdateData = {};
     Object.keys(updateData).forEach(key => {
       if (allowedFields.includes(key)) {
-        filteredUpdateData[key] = updateData[key];
+        // Handle array fields - convert to JSON string if they are arrays/objects
+        if (['channel_name', 'frequency', 'multicast_ip', 'port'].includes(key) &&
+          Array.isArray(updateData[key])) {
+          filteredUpdateData[key] = JSON.stringify(updateData[key]);
+        } else {
+          filteredUpdateData[key] = updateData[key];
+        }
       }
     });
 
@@ -274,6 +359,10 @@ export const updateStreamer = async (req, res) => {
     // Handle specific error cases
     if (err.message?.includes('not found')) {
       return res.status(404).json({ error: "Streamer not found" });
+    }
+
+    if (err.message?.includes('Duplicate entry') || err.message?.includes('constraint violation')) {
+      return res.status(409).json({ error: "Duplicate entry or constraint violation" });
     }
 
     res.status(500).json({ error: "Failed to update streamer" });
@@ -298,7 +387,8 @@ export default {
   getAllIncidentReports,
   updateIncidentReport,
   deleteResortIncident,
-  getStreamers,
-  updateStreamer
+  addStreamerConfig,
+  getAllStreamers,
+  updateStreamer,
+  deleteStreamerConfig
 }
-

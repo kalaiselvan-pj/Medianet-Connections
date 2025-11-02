@@ -9,7 +9,7 @@
     color: white;
     padding: 12px;
     border-radius: 8px;
-    background-color: #569fdfff;
+    background-color: #06529736;
     text-align: left;
     font-weight: bold;
     width: 98%;
@@ -27,14 +27,7 @@
 /* Active (current page) */
 .lhs_button.active {
     background-color: #2e86de;
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.25);
 }
-
-/* Active + hover (optional, if you want a shade on hover even when active) */
-.lhs_button.active:hover {
-    background-color: #276cb5;
-}
-
 
 .logout-btn {
     border: none;
@@ -71,8 +64,9 @@
 .mdn-logo {
     display: block;
     margin: 23px auto 0px;
-    width: 3.8rem;
+    width: 3.6rem;
     height: 3.5rem;
+    border-radius: 11px;
 }
 
 .lhs-icons {
