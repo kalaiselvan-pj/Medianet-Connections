@@ -8,7 +8,7 @@ export default function DashboardLayout({ children }) {
       <div
         style={{
           padding: "20px",
-          width: "75%",
+          width: "76%",
           backgroundColor: "#f8f8f8"
         }}
       >

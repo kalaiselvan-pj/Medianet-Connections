@@ -8,7 +8,10 @@ import DashboardLayout from "./components/dashboardLayout";
 import Toaster from "./components/common/toaster";
 import IncidentReports from "./components/incident-reports"
 import Rbac from "./components/rbac";
-import StreamerConfig from "./components/streamer-config"
+import StreamerConfig from "./components/streamer-config";
+import BpDetails from "./components/hits/bpDetails";
+import IslandInformation from "./components/hits/islandInformation";
+
 
 // Create Auth Context
 const AuthContext = createContext();
@@ -134,6 +137,28 @@ function App() {
             }
           />
 
+          <Route
+            path="/bp-details"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <BpDetails />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/island-information"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <IslandInformation />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* optional: handle unknown paths */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
@@ -144,4 +169,3 @@ function App() {
 }
 
 export default App;
-
