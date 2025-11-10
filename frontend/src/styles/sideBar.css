@@ -15,6 +15,7 @@
     width: 98%;
     margin-bottom: 12px;
     transition: background-color 0.3s, box-shadow 0.3s;
+    height: 2.7rem;
 }
 
 /* Hover (when not active) */
@@ -27,6 +28,15 @@
 /* Active (current page) */
 .lhs_button.active {
     background-color: #2e86de;
+}
+
+.logoutbutton {
+    position: sticky;
+    bottom: 0;
+    background: inherit;
+    padding: 10px;
+    /* border-top: 1px solid #e0e0e0; */
+    margin-top: auto;
 }
 
 .logout-btn {
@@ -48,6 +58,8 @@
 
 .logout-btn:hover {
     background-color: #c0392b;
+    /* color: #333; */
+
     /* darker red on hover */
 }
 
@@ -59,6 +71,43 @@
     flex-direction: column;
     padding: 0 20px 20px 20px;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    /* background: #fff; */
+}
+
+.sidebar-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+}
+
+.menubar {
+    flex: 1;
+    overflow-y: auto;
+    /* Hide scrollbar for all browsers */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+}
+
+.menulist-sticky {
+    position: sticky;
+    top: 0;
+    background: inherit;
+    z-index: 10;
+    /* padding: 16px; */
+    /* Add any background color you want */
+    /* background: #fff; */
+    /* Match your sidebar background */
+}
+
+.menubar::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
 }
 
 .mdn-logo {

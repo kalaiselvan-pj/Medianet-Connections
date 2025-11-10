@@ -194,7 +194,7 @@ const IncidentReports = () => {
         setSelectedIncident(null);
     };
 
-    // ⭐ UPDATED: Define table column headers
+    //  UPDATED: Define table column headers
     const columns = [
         { id: 'no', label: 'No.', minWidth: 30 },
         { id: 'resort_name', label: 'Resort Name', minWidth: 150 },
@@ -308,13 +308,13 @@ const IncidentReports = () => {
                                 {columns.map((column) => (
                                     <TableCell
                                         key={column.id}
-                                        style={{ minWidth: column.minWidth, backgroundColor: "#569fdfff", color: "white", fontWeight: 'bold' }}
+                                        style={{ minWidth: column.minWidth, backgroundColor: "#0670a4", color: "white", fontWeight: 'bold' }}
                                     >
                                         {column.label}
                                     </TableCell>
                                 ))}
                                 <TableCell
-                                    style={{ minWidth: 80, backgroundColor: "#569fdfff", color: "white", fontWeight: 'bold', textAlign: "center" }}
+                                    style={{ minWidth: 80, backgroundColor: "#0670a4", color: "white", fontWeight: 'bold', textAlign: "center" }}
                                 >
                                     Actions
                                 </TableCell>

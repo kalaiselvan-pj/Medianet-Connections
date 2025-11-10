@@ -60,5 +60,49 @@ router.get('/getAllStreamerConfig', statisticsController.getAllStreamers);
 router.put('/updateStreamerConfig/:id', statisticsController.updateStreamer);
 router.delete('/deleteStreamerConfig/:streamer_config_id', statisticsController.deleteStreamerConfig);
 
+//------------------------ Island Infromations ---------------------------
+router.post(
+    '/addIslandInformation',
+    statisticsController.addIslandInformation
+);
+
+router.put(
+    '/updateIslandInformation',
+    statisticsController.updateIslandInformation
+);
+
+router.get('/getIslandInformations', statisticsController.getIslandInformations);
+
+router.delete('/deleteIslandInformation/:island_id', statisticsController.deleteIslandInformation);
+
+// -------------------- Business Register Routes --------------------
+router.get('/getAllBusinessRegisters', statisticsController.getBusinessRegisters);
+
+router.post(
+    '/addBusinessRegister/add',
+    upload.fields([
+        { name: 'island_attach', maxCount: 1 },
+        { name: 'survey_form', maxCount: 1 },
+        { name: 'network_diagram', maxCount: 1 },
+        { name: 'dish_antena_image', maxCount: 1 }
+    ]),
+    statisticsController.addBusinessRegister
+);
+
+router.put(
+    '/updateBusinessRegister/update/:id',
+    upload.fields([
+        { name: 'island_attach', maxCount: 1 },
+        { name: 'survey_form', maxCount: 1 },
+        { name: 'network_diagram', maxCount: 1 },
+        { name: 'dish_antena_image', maxCount: 1 }
+    ]),
+    statisticsController.updateBusinessRegister
+);
+
+router.delete('/deleteBusinessRegister/:id', statisticsController.deleteBusinessRegister);
+
+
+
 // -------------------- Export Router --------------------
 export default router;

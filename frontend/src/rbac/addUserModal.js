@@ -23,28 +23,36 @@ const ROLE_PERMISSIONS = {
         resortList: { view: true, edit: true },
         resortIncidents: { view: true, edit: true },
         streamerConfig: { view: true, edit: true },
-        rbacManagement: { view: true, edit: true }, // Full access
+        rbacManagement: { view: true, edit: true },
+        islandInformations: { view: true, edit: true },
+        bpDetails: { view: true, edit: true },
     },
     manager: {
         dashboard: { view: true, edit: true },
         resortList: { view: true, edit: true },
         resortIncidents: { view: true, edit: true },
         streamerConfig: { view: true, edit: true },
-        rbacManagement: { view: false, edit: false }, // Limited config and admin
+        rbacManagement: { view: false, edit: false },
+        islandInformations: { view: true, edit: true },
+        bpDetails: { view: true, edit: true },
     },
     sales: {
         dashboard: { view: true, edit: false },
         resortList: { view: true, edit: false },
         resortIncidents: { view: false, edit: false },
         streamerConfig: { view: true, edit: false },
-        rbacManagement: { view: false, edit: false }, // Mostly view for sales-related data
+        rbacManagement: { view: false, edit: false },
+        islandInformations: { view: true, edit: false },
+        bpDetails: { view: true, edit: false },
     },
-    technician: { // Added the missing technician role
+    technician: {
         dashboard: { view: true, edit: false },
         resortList: { view: true, edit: false },
         resortIncidents: { view: true, edit: false },
         streamerConfig: { view: true, edit: false },
-        rbacManagement: { view: false, edit: false }, // Focus on incident/resort editing
+        rbacManagement: { view: false, edit: false },
+        islandInformations: { view: true, edit: false },
+        bpDetails: { view: true, edit: false },
     },
     // Fallback/Default structure for any new role
     default: {
@@ -53,9 +61,10 @@ const ROLE_PERMISSIONS = {
         resortIncidents: { view: false, edit: false },
         streamerConfig: { view: false, edit: false },
         rbacManagement: { view: false, edit: false },
+        islandInformations: { view: false, edit: false },
+        bpDetails: { view: false, edit: false },
     },
 };
-
 
 const AddUserModal = ({ open, onClose, onSave }) => {
     const [form, setForm] = useState({
@@ -100,7 +109,7 @@ const AddUserModal = ({ open, onClose, onSave }) => {
         }
     }, [open]);
 
-    //  Handle Submit - Permission Logic Added
+    // Handle Submit - Permission Logic Added
     const handleSubmit = () => {
         let hasError = false;
 
@@ -131,21 +140,20 @@ const AddUserModal = ({ open, onClose, onSave }) => {
         if (hasError) return;
         // --- End Validation Checks ---
 
-
-        // 1.  Get the corresponding permissions for the selected role
+        // 1. Get the corresponding permissions for the selected role
         const permissions = ROLE_PERMISSIONS[form.role] || ROLE_PERMISSIONS.default;
 
-        // 2.  Hash the password
+        // 2. Hash the password
         const hashedPassword = SHA256(form.password).toString();
 
-        // 3.  Create the final payload including the permissions
+        // 3. Create the final payload including the permissions
         const payload = {
             ...form,
             password: hashedPassword,
             permission: permissions, // <-- Add permissions to the payload
         };
 
-        // 4.  API Call
+        // 4. API Call
         fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/addUser`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

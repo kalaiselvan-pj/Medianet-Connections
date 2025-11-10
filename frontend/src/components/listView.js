@@ -688,11 +688,14 @@ const ListView = () => {
           <Button
             variant="contained"
             startIcon={<AddIcon fontSize="small" />}
-            onClick={() => { setSelectedResort(null); setShowModal(true); }}
+            onClick={() => {
+              setSelectedResort(null);
+              setShowModal(true);
+            }}
             sx={{
               borderRadius: "10px",
               textTransform: "none",
-              backgroundColor: "#2e86de",
+              backgroundColor: "#1976d2",
               color: "white",
               fontWeight: "bold",
               fontSize: "16px",
@@ -701,7 +704,10 @@ const ListView = () => {
               justifyContent: "center",
               padding: "8px 12px",
               height: "2.3rem",
-              width: "5rem"
+              width: "5rem",
+              '&:hover': {
+                backgroundColor: '#1e5dbd', // your hover color
+              },
             }}
           >
             Add
@@ -726,7 +732,7 @@ const ListView = () => {
                 <TableCell
                   key={i}
                   sx={{
-                    backgroundColor: "#569fdfff",
+                    backgroundColor: "#0670a4",
                     color: "white",
                     fontWeight: "bold",
                     textAlign: "center",

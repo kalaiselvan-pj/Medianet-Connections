@@ -85,17 +85,19 @@ const Rbac = () => {
 
     const handleSave = (updatedUser) => {
         setShowModal(false);
-        fetchUserData();
+        fetchUserData(); // Refresh the user list
     };
 
     return (
         <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
                 <h2 style={{ margin: 0 }}>Role Based Access Control (RBAC)</h2>
-                <button onClick={handleAdd} className="add-user-btn">
-                    <AddIcon style={{ marginRight: "6px" }} />
-                    Add User
-                </button>
+                {canAccess("rbacManagement", "edit") && (
+                    <button onClick={handleAdd} className="add-user-btn">
+                        <AddIcon style={{ marginRight: "6px" }} />
+                        Add User
+                    </button>
+                )}
             </div>
 
             <Paper sx={{ height: "84vh", overflow: "auto" }}>
@@ -119,14 +121,14 @@ const Rbac = () => {
                                 {canAccess("rbacManagement", "edit") && (
                                     <TableCell>
                                         <Tooltip title="Actions" arrow>
-                                            <IconButton onClick={(e) => handleMenuOpen(e, user.id)}>
+                                            <IconButton onClick={(e) => handleMenuOpen(e, user.login_id)}>
                                                 <MoreVertIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
 
                                         <Menu
                                             anchorEl={menuAnchorEl}
-                                            open={Boolean(menuAnchorEl) && menuUserId === user.id}
+                                            open={Boolean(menuAnchorEl) && menuUserId === user.login_id}
                                             onClose={handleMenuClose}
                                             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                                             transformOrigin={{ vertical: "top", horizontal: "right" }}
@@ -160,8 +162,13 @@ const Rbac = () => {
             {/* Add User Modal */}
             <AddUserModal open={openAdd} onClose={() => setOpenAdd(false)} onSave={handleSave} />
 
-            {/* Edit User Modal */}
-            <EditRbacModal isOpen={showModal} onClose={() => setShowModal(false)} onSave={handleSave} userData={selectedUser} />
+            {/* Edit User Modal - This is where selected user data is passed */}
+            <EditRbacModal
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                onSave={handleSave}
+                userData={selectedUser}
+            />
         </div>
     );
 };

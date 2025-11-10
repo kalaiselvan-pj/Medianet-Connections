@@ -198,21 +198,21 @@ export const getAllUsers = async () => {
 };
 
 // Update User Rbac
-const updateUser = async (login_id, data) => {
+const updateUser = async (data) => {
   try {
-
-    const row = await db.query(
+    const result = await db.query(
       `UPDATE login
-       SET permission = ?, updated_at = NOW() WHERE login_id = ?`,
-      [data.permissions, login_id]
+       SET permission = ?, updated_at = NOW() WHERE user_id = ?`,
+      [JSON.stringify(data.permissions), data.user_id]
     );
+    return result;
+
   } catch (err) {
     console.error("Error updating user:", err);
     throw err;
   }
 };
 
-// Delete user
 const deleteUser = async (login_id) => {
   try {
     await db.query(
@@ -942,6 +942,467 @@ export const deleteChannelFromConfig = async (streamer_config_id, channel_index)
   }
 };
 
+
+export const getIslandInformations = async () => {
+  try {
+    const rows = await db.query(`
+      SELECT 
+        ii.island_id,
+        ii.island_name,
+        ii.atoll,
+        ii.total_dtv_markets,
+        ii.active_dtv_markets,
+        ii.active_dtv_update_time,
+        ii.total_corporate_markets,
+        ii.active_corporate_markets,
+        ii.active_corporate_update_time,
+        ii.created_at,
+        ii.updated_at,
+        GROUP_CONCAT(bp.register_name) as register_names
+      FROM island_informations ii
+      LEFT JOIN business_partner bp ON ii.island_id = bp.island_id
+      GROUP BY ii.island_id
+      ORDER BY ii.created_at DESC
+    `);
+
+    // Process the results to convert register_names string to array
+    if (rows && Array.isArray(rows)) {
+      return rows.map(row => ({
+        ...row,
+        register_names: row.register_names ? row.register_names.split(',') : []
+      }));
+    }
+
+    return rows || [];
+
+  } catch (error) {
+    throw new Error(`Failed to fetch island informations: ${error.message}`);
+  }
+};
+
+export const addIslandInformation = async (data) => {
+  try {
+    const island_id = uuidv4();
+
+    // Convert string dates to MySQL timestamp format
+    const convertToMySQLTimestamp = (dateString) => {
+
+      if (!dateString || dateString.trim() === '') return null;
+
+      try {
+        // Handle format: "11/05/2025, 03:48:24 PM"
+        const [datePart, timePart] = dateString.split(', ');
+        const [month, day, year] = datePart.split('/');
+        const [time, period] = timePart.split(' ');
+        let [hours, minutes, seconds] = time.split(':');
+
+        // Convert to 24-hour format
+        if (period === 'PM' && hours !== '12') {
+          hours = parseInt(hours) + 12;
+        } else if (period === 'AM' && hours === '12') {
+          hours = '00';
+        }
+
+        // Format as MySQL timestamp: YYYY-MM-DD HH:MM:SS
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${hours}:${minutes}:${seconds}`;
+      } catch (error) {
+        console.error('Error converting date:', error);
+        return null;
+      }
+    };
+
+    // Only convert if the frontend provided non-empty values
+    const dtvUpdateTime = convertToMySQLTimestamp(data.dtvActiveUpdateTime);
+    const corporateUpdateTime = convertToMySQLTimestamp(data.corporateActiveUpdateTime);
+
+    await db.query(
+      `INSERT INTO island_informations 
+       (island_id, island_name, atoll, total_dtv_markets, active_dtv_markets,
+        active_dtv_update_time, total_corporate_markets, active_corporate_markets,
+        active_corporate_update_time, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        island_id,
+        data.islandName || null,
+        data.atoll || null,
+        data.dtvNoOfMarkets || null,
+        data.dtvActive || null,
+        dtvUpdateTime, // This will be null if frontend didn't provide value
+        data.corporateNoOfMarkets || null,
+        data.corporateActive || null,
+        corporateUpdateTime // This will be null if frontend didn't provide value
+      ]
+    );
+
+    return {
+      success: true,
+      island_id,
+      message: "Island information added successfully"
+    };
+
+  } catch (error) {
+    console.error('Error adding island information:', error);
+    return {
+      success: false,
+      error: error.message,
+      message: "Failed to add island information"
+    };
+  }
+};
+
+export const updateIslandInformation = async (data) => {
+  try {
+    // Get current time in Maldives (UTC+5)
+    const now = new Date();
+    const maldivesTime = new Date(now.getTime() + (5 * 60 * 60 * 1000)); // Add 5 hours for UTC+5
+    const maldivesTimestamp = maldivesTime.toISOString().slice(0, 19).replace('T', ' ');
+
+    // Convert string dates to MySQL timestamp format
+    const convertToMySQLTimestamp = (dateString) => {
+      if (!dateString) return maldivesTimestamp;
+
+      try {
+        // Handle format: "11/05/2025, 03:48:24 PM"
+        const [datePart, timePart] = dateString.split(', ');
+        const [month, day, year] = datePart.split('/');
+        const [time, period] = timePart.split(' ');
+        let [hours, minutes, seconds] = time.split(':');
+
+        // Convert to 24-hour format
+        if (period === 'PM' && hours !== '12') {
+          hours = parseInt(hours) + 12;
+        } else if (period === 'AM' && hours === '12') {
+          hours = '00';
+        }
+
+        // Format as MySQL timestamp: YYYY-MM-DD HH:MM:SS
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${hours}:${minutes}:${seconds}`;
+      } catch (error) {
+        console.error('Error converting date:', error);
+        return maldivesTimestamp;
+      }
+    };
+
+    await db.query(
+      `UPDATE island_informations 
+       SET island_name = ?, atoll = ?, total_dtv_markets = ?, active_dtv_markets = ?,
+           active_dtv_update_time = ?, total_corporate_markets = ?, active_corporate_markets = ?,
+           active_corporate_update_time = ?, updated_at = NOW()
+       WHERE island_id = ?`,
+      [
+        data.islandName || null,
+        data.atoll || null,
+        data.dtvNoOfMarkets || null,
+        data.dtvActive || null,
+        convertToMySQLTimestamp(data.dtvActiveUpdateTime),
+        data.corporateNoOfMarkets || null,
+        data.corporateActive || null,
+        convertToMySQLTimestamp(data.corporateActiveUpdateTime),
+        data.island_id
+      ]
+    );
+
+    return {
+      success: true,
+      message: "Island information updated successfully"
+    };
+
+  } catch (error) {
+    console.error('Error updating island information:', error);
+    return {
+      success: false,
+      error: error.message,
+      message: "Failed to update island information"
+    };
+  }
+};
+
+export const deleteIslandInformation = async (island_id) => {
+  try {
+    // Delete the island directly without checking existence first
+    const result = await db.query(
+      'DELETE FROM island_informations WHERE island_id = ?',
+      [island_id]
+    );
+    let affectedRows;
+
+    // Handle different response formats from database
+    if (Array.isArray(result)) {
+      // If result is an array, check the first element
+      affectedRows = result[0]?.affectedRows || 0;
+    } else {
+      // If result is an object, check directly
+      affectedRows = result.affectedRows || 0;
+    }
+
+    if (affectedRows > 0) {
+      return {
+        success: true,
+        island_id: island_id,
+        message: "Island information deleted successfully"
+      };
+    } else {
+      throw new Error('Island not found or already deleted');
+    }
+
+  } catch (error) {
+    console.error('Database error while deleting island information:', error);
+    throw error;
+  }
+};
+
+//Add BusinessRegister API
+export const addBusinessRegister = async (data) => {
+  try {
+    const business_id = uuidv4();
+    if (!data.register_name) {
+      return { success: false, message: "register_name is required" };
+    }
+
+    if (!data.island_id) {
+      return { success: false, message: "island_id is required" };
+    }
+    const [islandRows] = await db.query(
+      "SELECT island_id FROM island_informations WHERE island_id = ?",
+      [data.island_id]
+    );
+
+    if (islandRows.length === 0) {
+      return {
+        success: false,
+        message: "Invalid island_id — not found in island_informations table",
+      };
+    }
+    await db.query(
+      `INSERT INTO business_partner (
+        business_id, island_id, register_name, register_number, service_provider,
+        olt_owner, network_type, fiber_coax_convertor, island_attach,dish_antena_size,
+        tvro_type, dish_type, dish_brand,
+        horizontal_signal, vertical_signal,
+        horizontal_link_margin, vertical_link_margin,
+        survey_form, network_diagram, dish_antena_image,
+        contact_information, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        business_id,
+        data.island_id || null,
+        data.register_name || null,
+        data.register_number || null,
+        data.service_provider || null,
+        data.olt_owner || null,
+        data.network_type || null,
+        data.fiber_coax_convertor || null,
+
+        //  Store uploaded file buffers like in resort code
+        data.island_attach || null, // Buffer (e.g., file)
+        data.dish_antena_size || null,
+        data.tvro_type || null,
+        data.dish_type || null,
+        data.dish_brand || null,
+
+        data.horizontal_signal || null,
+        data.vertical_signal || null,
+        data.horizontal_link_margin || null,
+        data.vertical_link_margin || null,
+
+        // File upload fields — same pattern as in addResort
+        data.survey_form || null,         // Blob
+        data.network_diagram || null,     // Blob
+        data.dish_antena_image || null,  // Blob
+        data.contact_information
+          ? JSON.stringify(data.contact_information)
+          : JSON.stringify([]),
+      ]
+    );
+
+    return {
+      success: true,
+      business_id,
+      message: "Business partner added successfully",
+    };
+  } catch (error) {
+    console.error(" Error adding business partner:", error);
+    return {
+      success: false,
+      message: "Failed to add business partner",
+      error: error.message,
+    };
+  }
+};
+
+//GET BusinessRegisters API 
+export const getBusinessRegisters = async () => {
+  try {
+    const rows = await db.query(
+      `SELECT * FROM business_partner
+       ORDER BY register_name ASC`
+    );
+
+
+    return rows;
+  } catch (error) {
+    console.error('Database error while fetching business registers:', error);
+    throw error;
+  }
+};
+
+//UPDATE BusinessRegister API
+export const updateBusinessRegister = async (business_id, data = {}, files = {}) => {
+  try {
+    if (!business_id) {
+      return { success: false, message: "business_id is required" };
+    }
+    //  Fetch existing record safely
+    const existingResult = await db.query(
+      "SELECT * FROM business_partner WHERE business_id = ?",
+      [business_id]
+    );
+    const existingRows = Array.isArray(existingResult) ? existingResult[0] : existingResult;
+    if (!existingRows || existingRows.length === 0) {
+      return { success: false, message: "Business partner not found" };
+    }
+
+    const existing = existingRows[0] || {};
+
+    //  Validate island_id if provided
+    if (data.island_id) {
+      const islandResult = await db.query(
+        "SELECT island_id FROM island_informations WHERE island_id = ?",
+        [data.island_id]
+      );
+      const islandRows = Array.isArray(islandResult) ? islandResult[0] : islandResult;
+      if (!islandRows || islandRows.length === 0) {
+        return {
+          success: false,
+          message: "Invalid island_id — not found in island_informations table",
+        };
+      }
+    }
+
+    //  Safe file handler
+    const handleFileUpdate = (key, removeFlag) => {
+      try {
+        if (data?.[removeFlag] === true || data?.[removeFlag] === "true") return null;
+        if (files?.[key]?.[0]?.buffer) return files[key][0].buffer;
+        if (data?.[key]) return data[key];
+        return existing?.[key] ?? null;
+      } catch {
+        return existing?.[key] ?? null;
+      }
+    };
+
+    //  Prepare safe field values
+    const safe = (field) =>
+      data[field] !== undefined && data[field] !== null && data[field] !== ""
+        ? data[field]
+        : existing?.[field] ?? null;
+
+    //  Handle files
+    const island_attach_value = handleFileUpdate("island_attach", "removed_island_attach");
+    const survey_form_value = handleFileUpdate("survey_form", "removed_survey_form");
+    const network_diagram_value = handleFileUpdate("network_diagram", "removed_network_diagram");
+    const dish_antena_image_value = handleFileUpdate("dish_antena_image", "removed_dish_antena_image");
+
+    //  Parse contact info safely
+    let contactInfo = [];
+    try {
+      if (typeof data.contact_information === "string") {
+        contactInfo = JSON.parse(data.contact_information);
+      } else if (Array.isArray(data.contact_information)) {
+        contactInfo = data.contact_information;
+      } else if (existing.contact_information) {
+        contactInfo = JSON.parse(existing.contact_information);
+      }
+    } catch {
+      contactInfo = [];
+    }
+
+    //  SQL update query
+    const query = `
+      UPDATE business_partner SET
+        island_id = ?, register_name = ?, register_number = ?, service_provider = ?,
+        olt_owner = ?, network_type = ?, fiber_coax_convertor = ?, island_attach = ?,
+        tvro_type = ?,  dish_type = ?, dish_antena_size = ?, dish_brand = ?,
+        horizontal_signal = ?, vertical_signal = ?, horizontal_link_margin = ?, vertical_link_margin = ?,
+        survey_form = ?, network_diagram = ?, dish_antena_image = ?, contact_information = ?,
+        updated_at = NOW()
+      WHERE business_id = ?
+    `;
+
+    const params = [
+      safe("island_id"),
+      safe("register_name"),
+      safe("register_number"),
+      safe("service_provider"),
+      safe("olt_owner"),
+      safe("network_type"),
+      safe("fiber_coax_convertor"),
+      island_attach_value,
+      safe("tvro_type"),
+      safe("dish_type"),
+      safe("dish_antena_size"),
+      safe("dish_brand"),
+      safe("horizontal_signal"),
+      safe("vertical_signal"),
+      safe("horizontal_link_margin"),
+      safe("vertical_link_margin"),
+      survey_form_value,
+      network_diagram_value,
+      dish_antena_image_value,
+      JSON.stringify(contactInfo),
+      business_id,
+    ];
+
+    //  Execute update safely
+    const updateResultRaw = await db.query(query, params);
+    const updateResult = Array.isArray(updateResultRaw) ? updateResultRaw[0] : updateResultRaw;
+
+    if (updateResult.affectedRows > 0) {
+      return {
+        success: true,
+        message: "Business partner updated successfully",
+        business_id,
+      };
+    }
+
+    return { success: false, message: "No changes detected or update failed" };
+  } catch (error) {
+    console.error(" Error updating business partner:", error);
+    return {
+      success: false,
+      message: "Error updating business partner",
+      error: error.message,
+    };
+  }
+};
+
+//DELETE BusinessRegister API
+export const deleteBusinessRegister = async (business_id) => {
+  try {
+    const [result] = await db.query(
+      `DELETE FROM business_partner WHERE business_id = ?`,
+      [business_id]
+    );
+
+    if (result.affectedRows === 0) {
+      throw new Error("Business partner not found");
+    }
+    return {
+      success: true,
+      message: "Business partner deleted successfully",
+    };
+  } catch (err) {
+    console.error(" Error deleting business partner:", err);
+    return {
+      success: false,
+      message: "Failed to delete business partner",
+      error: err.message,
+    };
+  }
+};
+
+
 // Export using ES module syntax
 export default {
   login,
@@ -964,5 +1425,13 @@ export default {
   getAllStreamers,
   updateStreamer,
   deleteStreamerConfig,
-  deleteChannelFromConfig
+  deleteChannelFromConfig,
+  addIslandInformation,
+  getIslandInformations,
+  updateIslandInformation,
+  deleteIslandInformation,
+  addBusinessRegister,
+  getBusinessRegisters,
+  updateBusinessRegister,
+  deleteBusinessRegister
 };
