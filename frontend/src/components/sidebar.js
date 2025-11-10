@@ -39,7 +39,7 @@ const Sidebar = () => {
 
   // Check if any hits-related route is active
   const isHitsActive = () => {
-    return isActive("/bp-details") || isActive("/island-information");
+    return isActive("/bp-details") || isActive("/island-informations");
   };
 
   const toggleResorts = () => {
@@ -64,6 +64,9 @@ const Sidebar = () => {
     }
   }, [location.pathname]);
 
+  // Check if user has access to any HITS submenu items
+  const hasHitsAccess = canAccess("bpDetails", "view") || canAccess("islandInformations", "view");
+
   return (
     <div className="sidebar">
       <div className="sidebar-content">
@@ -74,7 +77,7 @@ const Sidebar = () => {
 
         <div className="menubar">
           <div className="dashboardbutton">
-            {canAccess("dashboard") && (
+            {canAccess("dashboard", "view") && (
               <button onClick={() => navigate("/dashboard")} className={`lhs_button ${isActive("/dashboard") ? "active" : ""}`}>
                 <DashboardIcon className="lhs-icons" /> Dashboard
               </button>
@@ -96,7 +99,7 @@ const Sidebar = () => {
 
               {isResortsOpen && (
                 <div className="resorts-submenu">
-                  {canAccess("resortList") && (
+                  {canAccess("resortList", "view") && (
                     <button
                       onClick={() => navigate("/listview")}
                       className={`lhs_button submenu-button ${isActive("/listview") ? "active" : ""}`}
@@ -106,7 +109,7 @@ const Sidebar = () => {
                     </button>
                   )}
 
-                  {canAccess("resortIncidents") && (
+                  {canAccess("resortIncidents", "view") && (
                     <button
                       onClick={() => navigate("/resort-incidents")}
                       className={`lhs_button submenu-button ${isActive("/resort-incidents") ? "active" : ""}`}
@@ -116,7 +119,7 @@ const Sidebar = () => {
                     </button>
                   )}
 
-                  {canAccess("streamerConfig") && (
+                  {canAccess("streamerConfig", "view") && (
                     <button
                       onClick={() => navigate("/upload-streamer-config")}
                       className={`lhs_button submenu-button ${isActive("/upload-streamer-config") ? "active" : ""}`}
@@ -129,42 +132,48 @@ const Sidebar = () => {
               )}
             </div>
 
-            {/* Hits Dropdown Section */}
-            <div className="hits-dropdown">
-              <button
-                onClick={toggleHits}
-                className={`lhs_button hits-main-button ${isHitsActive() ? "active" : ""}`}
-              >
-                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                  <span style={{ display: "flex", alignItems: "center" }}>
-                    <BusinessCenterIcon className="lhs-icons" /> HITS
+            {/* HITS Dropdown Section - Only show if user has access to at least one HITS item */}
+            {hasHitsAccess && (
+              <div className="hits-dropdown">
+                <button
+                  onClick={toggleHits}
+                  className={`lhs_button hits-main-button ${isHitsActive() ? "active" : ""}`}
+                >
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                    <span style={{ display: "flex", alignItems: "center" }}>
+                      <BusinessCenterIcon className="lhs-icons" /> HITS
+                    </span>
+                    {isHitsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                   </span>
-                  {isHitsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                </span>
-              </button>
+                </button>
 
-              {isHitsOpen && (
-                <div className="hits-submenu">
-                  <button
-                    onClick={() => navigate("/bp-details")}
-                    className={`lhs_button submenu-button ${isActive("/bp-details") ? "active" : ""}`}
-                  >
-                    <AssignmentIndIcon className="submenu-icon" />
-                    BP Details
-                  </button>
+                {isHitsOpen && (
+                  <div className="hits-submenu">
+                    {canAccess("bpDetails", "view") && (
+                      <button
+                        onClick={() => navigate("/bp-details")}
+                        className={`lhs_button submenu-button ${isActive("/bp-details") ? "active" : ""}`}
+                      >
+                        <AssignmentIndIcon className="submenu-icon" />
+                        BP Details
+                      </button>
+                    )}
 
-                  <button
-                    onClick={() => navigate("/island-information")}
-                    className={`lhs_button submenu-button ${isActive("/island-information") ? "active" : ""}`}
-                  >
-                    <InfoIcon className="submenu-icon" />
-                    Island Information
-                  </button>
-                </div>
-              )}
-            </div>
+                    {canAccess("islandInformations", "view") && (
+                      <button
+                        onClick={() => navigate("/island-informations")}
+                        className={`lhs_button submenu-button ${isActive("/island-informations") ? "active" : ""}`}
+                      >
+                        <InfoIcon className="submenu-icon" />
+                        Island Informations
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
-            {canAccess("rbacManagement") && (
+            {canAccess("rbacManagement", "view") && (
               <button onClick={() => navigate("/rbac-management")} className={`lhs_button ${isActive("/rbac-management") ? "active" : ""}`}>
                 <SecurityIcon className="lhs-icons" /> RBAC Management
               </button>

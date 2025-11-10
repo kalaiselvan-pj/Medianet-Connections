@@ -77,9 +77,7 @@ const getAllUsers = async (req, res) => {
 //Update User RBAC API
 const updateUser = async (req, res) => {
   try {
-    const { login_id } = req.params;
-
-    await statisticsService.updateUser(login_id, req.body);
+    await statisticsService.updateUser(req.body);
     res.json({ message: "user updated successfully" });
   } catch (err) {
     res.status(500).json({ error: "Failed to update user" });
@@ -369,6 +367,253 @@ export const updateStreamer = async (req, res) => {
   }
 };
 
+export const addIslandInformation = async (req, res) => {
+  try {
+    // Check if req.body exists
+    if (!req.body) {
+      return res.status(400).json({
+        error: 'Request body is missing or invalid',
+        message: 'Please check if Content-Type header is set correctly'
+      });
+    }
+
+    // Parse the form data
+    const data = {
+      islandName: req.body.islandName,
+      atoll: req.body.atoll,
+      dtvNoOfMarkets: req.body.dtvNoOfMarkets,
+      dtvActive: req.body.dtvActive,
+      dtvActiveUpdateTime: req.body.dtvActiveUpdateTime,
+      corporateNoOfMarkets: req.body.corporateNoOfMarkets,
+      corporateActive: req.body.corporateActive,
+      corporateActiveUpdateTime: req.body.corporateActiveUpdateTime
+    };
+
+    // Validate required fields
+    if (!data.islandName || !data.atoll) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        message: 'Island Name and Atoll are required fields'
+      });
+    }
+
+    const result = await statisticsService.addIslandInformation(data);
+    res.json(result);
+  } catch (err) {
+    console.error("Error adding island information:", err);
+    res.status(500).json({
+      error: err.message,
+      message: "Failed to add island information"
+    });
+  }
+};
+
+export const updateIslandInformation = async (req, res) => {
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        error: 'Request body is missing or invalid'
+      });
+    }
+
+    // Parse the form data
+    const data = {
+      island_id: req.body.island_id,
+      islandName: req.body.islandName,
+      atoll: req.body.atoll,
+      dtvNoOfMarkets: req.body.dtvNoOfMarkets,
+      dtvActive: req.body.dtvActive,
+      dtvActiveUpdateTime: req.body.dtvActiveUpdateTime,
+      corporateNoOfMarkets: req.body.corporateNoOfMarkets,
+      corporateActive: req.body.corporateActive,
+      corporateActiveUpdateTime: req.body.corporateActiveUpdateTime
+    };
+
+    // Validate required fields
+    if (!data.island_id || !data.islandName || !data.atoll) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        message: 'Island ID, Island Name and Atoll are required fields'
+      });
+    }
+
+    const result = await statisticsService.updateIslandInformation(data);
+    res.json(result);
+  } catch (err) {
+    console.error("Error updating island information:", err);
+    res.status(500).json({
+      error: err.message,
+      message: "Failed to update island information"
+    });
+  }
+};
+
+export const getIslandInformations = async (req, res) => {
+  try {
+    const result = await statisticsService.getIslandInformations();
+    res.json(result);
+  } catch (err) {
+    console.error("Error fetching island informations:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+export const deleteIslandInformation = async (req, res) => {
+  try {
+    const { island_id } = req.params;
+
+    if (!island_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Island ID is required',
+        message: "Island ID is required for deletion"
+      });
+    }
+
+    const isDeleted = await statisticsService.deleteIslandInformation(island_id);
+
+    if (isDeleted) {
+      res.json({
+        success: true,
+        message: 'Island information deleted successfully'
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Island not found',
+        message: "Island not found or already deleted"
+      });
+    }
+
+  } catch (err) {
+    console.error("Error deleting island information:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      message: "Failed to delete island information"
+    });
+  }
+};
+
+//ADD  Business Registers API
+export const addBusinessRegister = async (req, res) => {
+  try {
+    // Check if required fields are present
+    const requiredFields = ['register_name', , 'island_id'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required fields: ${missingFields.join(', ')}`
+      });
+    }
+
+    // Prepare data
+    const data = {
+      ...req.body,
+      island_attach: req.files?.island_attach?.[0]?.buffer || null,
+      survey_form: req.files?.survey_form?.[0]?.buffer || null,
+      network_diagram: req.files?.network_diagram?.[0]?.buffer || null,
+      dish_antena_image: req.files?.dish_antena_image?.[0]?.buffer || null,
+
+    };
+
+    const result = await statisticsService.addBusinessRegister(data);
+
+    // Return the service response directly
+    res.json(result);
+  } catch (err) {
+    console.error(" Controller error adding business register:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to add business register",
+      error: err.message
+    });
+  }
+};
+
+// Get All Business Registers API
+export const getBusinessRegisters = async (req, res) => {
+  try {
+    const businessRegisters = await statisticsService.getBusinessRegisters();
+
+    res.json(businessRegisters);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch business registers" });
+  }
+};
+
+// Update Business Register API
+export const updateBusinessRegister = async (req, res) => {
+  try {
+    const { id } = req.params; // business_id from URL
+
+    //  Check required param
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing business_id parameter in URL",
+      });
+    }
+
+    //  Optional validation (warn only)
+    const requiredFields = ["register_name",];
+    const missingFields = requiredFields.filter((field) => !req.body[field]);
+    if (missingFields.length > 0) {
+      console.warn("⚠️ Missing fields in update request:", missingFields);
+    }
+
+    //  Prepare clean data object (avoid undefined/null propagation)
+    const data = {
+      ...req.body,
+      contact_information: req.body.contact_information
+        ? req.body.contact_information
+        : "[]", // ensure valid JSON
+    };
+
+    //  Map uploaded files properly (same names as service)
+    const files = {
+      island_attach: req.files?.island_attach || [],
+      survey_form: req.files?.survey_form || [],
+      network_diagram: req.files?.network_diagram || [],
+      dish_antena_image: req.files?.dish_antena_image || [], // fixed name
+    };
+
+    //  Call service function
+    const result = await statisticsService.updateBusinessRegister(id, data, files);
+
+    //  Handle response
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    //  Success response
+    return res.status(200).json(result);
+
+  } catch (error) {
+    console.error(" Controller error updating business register:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update business register",
+      error: error.message,
+    });
+  }
+};
+
+// Delete Business Register API
+const deleteBusinessRegister = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await statisticsService.deleteBusinessRegister(id);
+    res.json({ message: "Business register deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete business register" });
+  }
+};
+
 
 export default {
   login,
@@ -390,5 +635,13 @@ export default {
   addStreamerConfig,
   getAllStreamers,
   updateStreamer,
-  deleteStreamerConfig
+  deleteStreamerConfig,
+  addIslandInformation,
+  getIslandInformations,
+  updateIslandInformation,
+  deleteIslandInformation,
+  addBusinessRegister,
+  getBusinessRegisters,
+  updateBusinessRegister,
+  deleteBusinessRegister
 }

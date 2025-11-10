@@ -10,7 +10,7 @@ import IncidentReports from "./components/incident-reports"
 import Rbac from "./components/rbac";
 import StreamerConfig from "./components/streamer-config";
 import BpDetails from "./components/hits/bpDetails";
-import IslandInformation from "./components/hits/islandInformation";
+import IslandInformations from "./components/hits/islandInformation";
 
 
 // Create Auth Context
@@ -149,11 +149,11 @@ function App() {
           />
 
           <Route
-            path="/island-information"
+            path="/island-informations"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <IslandInformation />
+                  <IslandInformations />
                 </DashboardLayout>
               </ProtectedRoute>
             }

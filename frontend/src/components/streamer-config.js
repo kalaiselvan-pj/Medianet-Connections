@@ -1287,22 +1287,22 @@ function StreamerConfigTable() {
     // Function to render table headers based on streamer type
     const renderTableHeaders = () => {
         const baseHeaders = [
-            <TableCell key="no" align="center" sx={{ width: '80px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>NO</TableCell>,
-            <TableCell key="channel" sx={{ minWidth: '200px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>CHANNEL NAME</TableCell>,
-            <TableCell key="multicast" sx={{ minWidth: '155px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>MULTICAST IP</TableCell>,
-            <TableCell key="port" align="center" sx={{ width: '130px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>PORT</TableCell>,
-            <TableCell key="stb" sx={{ minWidth: '180px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>STB NO</TableCell>,
-            <TableCell key="vc" sx={{ minWidth: '120px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>VC NO</TableCell>,
-            <TableCell key="trfc" sx={{ minWidth: '150px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>TRFC IP</TableCell>,
-            <TableCell key="mngmnt" sx={{ minWidth: '150px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>MNGMNT IP</TableCell>,
-            <TableCell key="strm" align="center" sx={{ width: '80px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>STRM</TableCell>,
-            <TableCell key="card" align="center" sx={{ width: '80px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>CARD</TableCell>
+            <TableCell key="no" align="center" sx={{ width: '80px', backgroundColor: '#0670a4 !important', color: 'white' }}>NO</TableCell>,
+            <TableCell key="channel" sx={{ minWidth: '200px', backgroundColor: '#0670a4 !important', color: 'white' }}>CHANNEL NAME</TableCell>,
+            <TableCell key="multicast" sx={{ minWidth: '155px', backgroundColor: '#0670a4 !important', color: 'white' }}>MULTICAST IP</TableCell>,
+            <TableCell key="port" align="center" sx={{ width: '130px', backgroundColor: '#0670a4 !important', color: 'white' }}>PORT</TableCell>,
+            <TableCell key="stb" sx={{ minWidth: '180px', backgroundColor: '#0670a4 !important', color: 'white' }}>STB NO</TableCell>,
+            <TableCell key="vc" sx={{ minWidth: '120px', backgroundColor: '#0670a4 !important', color: 'white' }}>VC NO</TableCell>,
+            <TableCell key="trfc" sx={{ minWidth: '150px', backgroundColor: '#0670a4 !important', color: 'white' }}>TRFC IP</TableCell>,
+            <TableCell key="mngmnt" sx={{ minWidth: '150px', backgroundColor: '#0670a4 !important', color: 'white' }}>MNGMNT IP</TableCell>,
+            <TableCell key="strm" align="center" sx={{ width: '80px', backgroundColor: '#0670a4 !important', color: 'white' }}>STRM</TableCell>,
+            <TableCell key="card" align="center" sx={{ width: '80px', backgroundColor: '#0670a4 !important', color: 'white' }}>CARD</TableCell>
         ];
 
         // For TS Streamer, insert frequency column after port
         if (streamerType === 'TS Streamer') {
             baseHeaders.splice(4, 0,
-                <TableCell key="frequency" align="center" sx={{ width: '120px', backgroundColor: 'rgb(86, 159, 223) !important', color: 'white' }}>FREQUENCY</TableCell>
+                <TableCell key="frequency" align="center" sx={{ width: '120px', backgroundColor: '#0670a4 !important', color: 'white' }}>FREQUENCY</TableCell>
             );
         }
 
@@ -1316,7 +1316,7 @@ function StreamerConfigTable() {
                         width: '140px',
                         position: 'sticky',
                         right: 0,
-                        backgroundColor: 'rgb(86, 159, 223) !important',
+                        backgroundColor: '#0670a4 !important',
                         color: 'white',
                         zIndex: 12,
                         borderLeft: '2px solid #e0e0e0',

@@ -91,7 +91,7 @@
 
 /* Table header styling - REMOVED BORDER BOTTOM */
 .table-container-custom .MuiTableCell-head {
-    background-color: #569fdfff;
+    background-color: #0670a4;
     color: white;
     font-weight: bold;
     position: sticky;

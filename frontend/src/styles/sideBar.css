@@ -15,6 +15,7 @@
     width: 98%;
     margin-bottom: 12px;
     transition: background-color 0.3s, box-shadow 0.3s;
+    height: 2.7rem;
 }
 
 /* Hover (when not active) */
