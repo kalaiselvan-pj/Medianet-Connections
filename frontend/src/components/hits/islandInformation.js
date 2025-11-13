@@ -346,32 +346,58 @@ const IslandInformations = () => {
             selectedIslands.includes(island.island_id)
         );
 
-        // Create CSV content WITHOUT the TVRO columns
+        // Format current timestamp in the required format: 11/12/2025, 05:40:53 PM
+        const getCurrentTimestamp = () => {
+            const now = new Date();
+            const day = now.getDate().toString().padStart(2, '0');
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const year = now.getFullYear();
+
+            let hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+
+            hours = hours % 12;
+            hours = hours ? hours.toString().padStart(2, '0') : '12'; // the hour '0' should be '12'
+
+            return `${month}/${day}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
+        };
+
+        // Create CSV content WITH the TVRO columns and last updated times
         const headers = [
             'Island Name',
             'Atoll',
+            'Register Names',
             'Total DTV Markets',
             'Active DTV Markets',
+            'DTV Last Updated Time',
             'Total Corporate Markets',
             'Active Corporate Markets',
-            'Register Names'
+            'Corporate Last Updated Time',
         ];
 
-        // Map data to match the header order (without TVRO fields)
-        const csvData = selectedIslandsData.map(island => [
-            island.island_name || '',
-            island.atoll || '',
-            island.total_dtv_markets || 0,
-            island.active_dtv_markets || 0,
-            island.total_corporate_markets || 0,
-            island.active_corporate_markets || 0,
-            island.register_names ? island.register_names.join(', ') : ''
-        ]);
+        // Map data to match the header order
+        const csvData = selectedIslandsData.map(island => {
+            const currentTimestamp = getCurrentTimestamp();
+
+            return [
+                island.island_name || '',
+                island.atoll || '',
+                island.register_names ? island.register_names.join(', ') : '',
+                island.total_dtv_markets || 0,
+                island.active_dtv_markets || 0,
+                currentTimestamp, // Use current timestamp for DTV
+                island.total_corporate_markets || 0,
+                island.active_corporate_markets || 0,
+                currentTimestamp, // Use current timestamp for Corporate
+            ];
+        });
 
         // Create CSV content with column width information
         const csvContent = [
-            // Add column width information as a comment (Excel might ignore this in CSV, but it's good practice)
-            '# Column Widths: Island Name=20, Atoll=15, Total DTV Markets=18, Active DTV Markets=18, Total Corporate Markets=22, Active Corporate Markets=22, Register Names=30',
+            // Add column width information as a comment
+            '# Column Widths: Island Name=20, Atoll=15, Total DTV Markets=18, Active DTV Markets=18, DTV Last Updated Time=25, Total Corporate Markets=22, Active Corporate Markets=22, Corporate Last Updated Time=25, Register Names=30',
             '\uFEFF' + headers.join(','), // BOM for UTF-8
             ...csvData.map(row =>
                 row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
@@ -390,14 +416,16 @@ const IslandInformations = () => {
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.aoa_to_sheet([headers, ...csvData]);
 
-                // Set column widths
+                // Set column widths (updated for new columns)
                 const colWidths = [
                     { wch: 20 }, // Island Name
                     { wch: 15 }, // Atoll
                     { wch: 18 }, // Total DTV Markets
                     { wch: 18 }, // Active DTV Markets
+                    { wch: 25 }, // DTV Last Updated Time
                     { wch: 22 }, // Total Corporate Markets
                     { wch: 22 }, // Active Corporate Markets
+                    { wch: 25 }, // Corporate Last Updated Time
                     { wch: 30 }  // Register Names
                 ];
                 ws['!cols'] = colWidths;
@@ -428,7 +456,7 @@ const IslandInformations = () => {
         if (excelWorkbook) {
             try {
                 XLSX.writeFile(excelWorkbook, filename);
-                showToast(`Downloaded ${selectedIslands.length} island(s) with formatted columns`, 'success');
+                showToast(`Downloaded ${selectedIslands.length} island(s) Successfully`, 'success');
                 return;
             } catch (error) {
                 console.error('Error downloading Excel file:', error);
@@ -453,7 +481,7 @@ const IslandInformations = () => {
         // Clean up
         setTimeout(() => URL.revokeObjectURL(url), 100);
 
-        showToast(`Downloaded ${selectedIslands.length} island(s) as CSV`, 'success');
+        showToast(`Downloaded ${selectedIslands.length} island(s)Successfully`, 'success');
     };
 
     return (
@@ -576,7 +604,7 @@ const IslandInformations = () => {
                 </Box>
             </div>
 
-            {/* Table Section - Clean like RBAC example */}
+            {/* Table Section*/}
             <Paper sx={{ height: "76vh", overflow: "auto" }}>
                 <Table stickyHeader>
                     <TableHead>
@@ -626,21 +654,25 @@ const IslandInformations = () => {
                                     {formatRegisterNames(island.register_names)}
                                 </TableCell>
                                 <TableCell align="center">
-                                    <StatusChip
-                                        active={island.active_dtv_markets}
-                                        total={island.total_dtv_markets}
-                                    />
+                                    <Box display="flex" justifyContent="center">
+                                        <StatusChip
+                                            active={island.active_dtv_markets}
+                                            total={island.total_dtv_markets}
+                                        />
+                                    </Box>
                                 </TableCell>
                                 <TableCell align="center">
-                                    <StatusChip
-                                        active={island.active_corporate_markets}
-                                        total={island.total_corporate_markets}
-                                    />
+                                    <Box display="flex" justifyContent="center">
+                                        <StatusChip
+                                            active={island.active_corporate_markets}
+                                            total={island.total_corporate_markets}
+                                        />
+                                    </Box>
                                 </TableCell>
                                 <TableCell align="center">
                                     <Tooltip title="Actions" arrow>
                                         <IconButton onClick={(e) => handleMenuOpen(e, island)}>
-                                            <MoreVertIcon fontSize="small" />
+                                            <MoreVertIcon />
                                         </IconButton>
                                     </Tooltip>
                                 </TableCell>

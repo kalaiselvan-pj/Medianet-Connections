@@ -13,8 +13,7 @@ import {
 } from '@mui/icons-material';
 import { IconButton } from '@mui/material';
 import { showErrorToast, showToast } from '../common/toaster';
-
-// Import your ATOLL_ISLAND_DATA constant
+import { format, toZonedTime } from 'date-fns-tz';
 import { ATOLL_ISLAND_DATA } from '../common/atollIslandData';
 
 const AddIslandInformation = ({ open, onClose, onSave, editData }) => {
@@ -75,19 +74,17 @@ const AddIslandInformation = ({ open, onClose, onSave, editData }) => {
         };
     };
 
-    // Format timestamp from database to readable format
+    // Format timestamp from database to readable format with Maldives timezone
     const formatTimestamp = (timestamp) => {
         if (!timestamp) return '';
-        const date = new Date(timestamp);
-        return date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-        });
+        try {
+            const date = new Date(timestamp);
+            const maldivesTime = toZonedTime(date, 'Indian/Maldives');
+            return format(maldivesTime, 'MM/dd/yyyy, hh:mm:ss a', { timeZone: 'Indian/Maldives' });
+        } catch (error) {
+            console.error('Error formatting timestamp:', error);
+            return '';
+        }
     };
 
     // Update available islands when atoll changes
@@ -197,18 +194,15 @@ const AddIslandInformation = ({ open, onClose, onSave, editData }) => {
         setIslandSearch(value);
     };
 
-    // Get current timestamp in readable format
     const getCurrentTimestamp = () => {
-        const now = new Date();
-        return now.toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-        });
+        try {
+            const now = new Date();
+            const maldivesTime = toZonedTime(now, 'Indian/Maldives');
+            return format(maldivesTime, 'MM/dd/yyyy, hh:mm:ss a', { timeZone: 'Indian/Maldives' });
+        } catch (error) {
+            console.error('Error getting current timestamp:', error);
+            return '';
+        }
     };
 
     // Handle DTV Active change with timestamp

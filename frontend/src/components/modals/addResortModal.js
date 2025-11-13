@@ -30,7 +30,6 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ImageIcon from "@mui/icons-material/Image";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import Visibility from "@mui/icons-material/Visibility";
@@ -97,6 +96,16 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     dish_antena_image: false
   });
 
+  // New state to track if form has been modified
+  const [isFormModified, setIsFormModified] = useState(false);
+  const [initialFormData, setInitialFormData] = useState(null);
+  const [initialContacts, setInitialContacts] = useState([]);
+  const [initialFiles, setInitialFiles] = useState({
+    survey_form: null,
+    service_acceptance_form: null,
+    dish_antena_image: null
+  });
+
   // Check if category is Ooredoo
   const isOoredoo = formData.category === "Ooredoo";
 
@@ -111,7 +120,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     if (showModal) {
       if (selectedResort) {
         // Edit mode - populate with existing data
-        setFormData({
+        const initialData = {
           resort_name: selectedResort.resort_name || "",
           category: selectedResort.category || "",
           island: selectedResort.island || "",
@@ -133,14 +142,25 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
           middleware_ip: selectedResort.middleware_ip || "",
           username: selectedResort.username || "",
           password: selectedResort.password || "",
-        });
+        };
+
+        setFormData(initialData);
+        setInitialFormData(initialData);
         setContacts(selectedResort.contact_details || []);
+        setInitialContacts(selectedResort.contact_details || []);
         setSignalTimestamp(selectedResort.signal_level_timestamp || "");
 
         // Set URLs for existing files
         setSurveyFormUrl(bufferToUrl(selectedResort.survey_form, 'application/pdf'));
         setServiceAcceptanceUrl(bufferToUrl(selectedResort.service_acceptance_form, 'application/pdf'));
         setDishAntennaImageUrl(bufferToUrl(selectedResort.dish_antena_image, 'image/jpeg'));
+
+        // Set initial files state
+        setInitialFiles({
+          survey_form: selectedResort.survey_form,
+          service_acceptance_form: selectedResort.service_acceptance_form,
+          dish_antena_image: selectedResort.dish_antena_image
+        });
 
         // Reset file change tracking
         setFilesChanged({
@@ -160,9 +180,12 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
         setServiceAcceptanceFile(null);
         setSignalImageFile(null);
         setDishAntennaImageFile(null);
+
+        // Reset form modified state
+        setIsFormModified(false);
       } else {
         // Add mode - reset everything
-        setFormData({
+        const emptyData = {
           resort_name: "",
           category: "",
           island: "",
@@ -184,8 +207,12 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
           middleware_ip: "",
           username: "",
           password: "",
-        });
+        };
+
+        setFormData(emptyData);
+        setInitialFormData(emptyData);
         setContacts([]);
+        setInitialContacts([]);
         setSignalTimestamp("");
         setSurveyFormFile(null);
         setServiceAcceptanceFile(null);
@@ -205,9 +232,35 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
           service_acceptance_form: false,
           dish_antena_image: false
         });
+        setInitialFiles({
+          survey_form: null,
+          service_acceptance_form: null,
+          dish_antena_image: null
+        });
+
+        // In add mode, form is always considered modified since we start with empty data
+        setIsFormModified(true);
       }
     }
   }, [selectedResort, showModal]);
+
+  // Check if form has been modified
+  useEffect(() => {
+    if (!showModal || !initialFormData) return;
+
+    // Check if form data has changed
+    const isDataChanged = Object.keys(formData).some(key =>
+      formData[key] !== initialFormData[key]
+    );
+
+    // Check if contacts have changed
+    const isContactsChanged = JSON.stringify(contacts) !== JSON.stringify(initialContacts);
+
+    // Check if files have changed
+    const isFilesChanged = Object.values(filesChanged).some(value => value === true);
+
+    setIsFormModified(isDataChanged || isContactsChanged || isFilesChanged);
+  }, [formData, contacts, filesChanged, initialFormData, initialContacts, showModal]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -358,8 +411,14 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
   };
 
   const handleDialogClose = (event, reason) => {
-    if (reason === "backdropClick") return;
-    setShowModal(false);
+    // Prevent closing when clicking backdrop
+    if (reason === "backdropClick") {
+      return;
+    }
+    // Only allow closing via cancel button or close icon
+    if (reason === "escapeKeyDown") {
+      return;
+    }
   };
 
   // Function to truncate long text with ellipsis
@@ -379,6 +438,11 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
       console.error("Error converting buffer to blob:", error);
       return null;
     }
+  };
+
+  // Handle cancel button click
+  const handleCancel = () => {
+    setShowModal(false);
   };
 
   // Main save function
@@ -513,7 +577,6 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
     }
   };
 
-
   const bufferToUrl = (bufferData, mimeType) => {
     if (!bufferData || !bufferData.data) return null;
 
@@ -552,13 +615,14 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
   return (
     <Dialog
       open={showModal}
-      onClose={() => setShowModal(false)}
+      onClose={handleDialogClose}
       maxWidth={false}
       PaperProps={{ sx: { width: "1300px", height: "700px", maxHeight: "95vh", p: 2 } }}
+      disableEscapeKeyDown
     >
       <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 10 }}>
         {isEditMode ? "Edit Resort Details" : "Add New Resort"}
-        <IconButton onClick={() => setShowModal(false)}>
+        <IconButton onClick={handleCancel}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -621,7 +685,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                     </MenuItem>
                     <MenuItem value="Medianet">Medianet</MenuItem>
                     <MenuItem value="Ooredoo">Ooredoo</MenuItem>
-                    <MenuItem value="piracy">piracy</MenuItem>
+                    <MenuItem value="piracy">Piracy</MenuItem>
                   </Select>
                   {!formData.category && (
                     <Typography variant="caption" sx={{ ml: 1.5, mt: 0.5 }}>
@@ -846,7 +910,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                 updated[index].name = e.target.value;
                                 setContacts(updated);
                               }}
-                              placeholder="Name (optional)"
+                              placeholder="Name"
                             />
                           ) : (
                             <Tooltip title={contact.name || "Empty"} arrow>
@@ -876,7 +940,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                 updated[index].email = e.target.value;
                                 setContacts(updated);
                               }}
-                              placeholder="Email (optional)"
+                              placeholder="Email"
                             />
                           ) : (
                             <Tooltip title={contact.email || "Empty"} arrow>
@@ -906,7 +970,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                 updated[index].phone = e.target.value;
                                 setContacts(updated);
                               }}
-                              placeholder="Phone (optional)"
+                              placeholder="Phone"
                             />
                           ) : (
                             <Tooltip title={contact.phone || "Empty"} arrow>
@@ -935,7 +999,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                                 updated[index].designation = e.target.value;
                                 setContacts(updated);
                               }}
-                              placeholder="Designation (optional)"
+                              placeholder="Designation"
                             />
                           ) : (
                             <Tooltip title={contact.designation || "Empty"} arrow>
@@ -1000,7 +1064,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           <TextField
                             fullWidth
                             size="small"
-                            placeholder="Name (optional)"
+                            placeholder="Name"
                             value={newContact.name}
                             onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
                           />
@@ -1009,7 +1073,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           <TextField
                             fullWidth
                             size="small"
-                            placeholder="Email (optional)"
+                            placeholder="Email"
                             value={newContact.email}
                             onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
                           />
@@ -1018,7 +1082,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           <TextField
                             fullWidth
                             size="small"
-                            placeholder="Phone (optional)"
+                            placeholder="Phone"
                             value={newContact.phone}
                             onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
                           />
@@ -1027,7 +1091,7 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
                           <TextField
                             fullWidth
                             size="small"
-                            placeholder="Designation (optional)"
+                            placeholder="Designation"
                             value={newContact.designation}
                             onChange={(e) => setNewContact({ ...newContact, designation: e.target.value })}
                           />
@@ -1508,10 +1572,14 @@ const AddResortModal = ({ showModal, setShowModal, selectedResort, onSaveResort 
 
       <Divider />
       <DialogActions sx={{ p: 2, height: 10, gap: 2 }}>
-        <Button variant="outlined" onClick={() => setShowModal(false)}>
+        <Button variant="outlined" onClick={handleCancel}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={handleSaveResort} disabled={loading}>
+        <Button
+          variant="contained"
+          onClick={handleSaveResort}
+          disabled={loading || (isEditMode && !isFormModified)}
+        >
           {loading ? "Saving..." : "Save Resort"}
         </Button>
       </DialogActions>

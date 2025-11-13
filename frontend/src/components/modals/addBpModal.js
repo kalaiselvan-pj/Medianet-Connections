@@ -26,6 +26,7 @@ import {
     RadioGroup,
     InputAdornment,
     Fade,
+    Autocomplete,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
@@ -72,6 +73,7 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
     // Add states for island search and filtering
     const [islandSearchTerm, setIslandSearchTerm] = useState('');
     const [filteredIslands, setFilteredIslands] = useState([]);
+    const [selectedIsland, setSelectedIsland] = useState(null);
 
     // File upload states - Changed from PDF to CSV
     const [islandAttachFile, setIslandAttachFile] = useState(null);
@@ -107,6 +109,53 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
     // --- Signal Timestamp State ---
     const [signalTimestamp, setSignalTimestamp] = useState("");
 
+    // New state to track if form has been modified
+    const [isFormModified, setIsFormModified] = useState(false);
+    const [initialFormData, setInitialFormData] = useState(null);
+    const [initialContacts, setInitialContacts] = useState([]);
+    const [initialFiles, setInitialFiles] = useState({
+        island_attach: null,
+        survey_form: null,
+        network_diagram: null,
+        dish_antena_image: null
+    });
+
+    // Function to get Maldives time in MM/DD/YYYY, HH:MM:SS AM/PM format
+    const getMaldivesTime = () => {
+        return new Date().toLocaleString("en-US", {
+            timeZone: 'Indian/Maldives',
+            month: "2-digit",
+            day: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true
+        });
+    };
+
+    // Function to convert ISO timestamp to Maldives time format
+    const convertISOTimestamp = (isoString) => {
+        if (!isoString) return "";
+
+        try {
+            const date = new Date(isoString);
+            return date.toLocaleString("en-US", {
+                timeZone: 'Indian/Maldives',
+                month: "2-digit",
+                day: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true
+            });
+        } catch (error) {
+            console.error("Error converting ISO timestamp:", error);
+            return isoString; // Return original if conversion fails
+        }
+    };
+
     // Fetch islands data from the specified endpoint
     useEffect(() => {
         const fetchIslands = async () => {
@@ -135,62 +184,36 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
         setFilteredIslands(islands);
     }, [islands]);
 
-    // Set island name for display
+    // Set island name for display and selected island
     useEffect(() => {
         if (formData.island && islands.length > 0) {
             const island = islands.find(item => item.island_id === formData.island);
             if (island) {
                 setIslandName(island.island_name);
+                setSelectedIsland(island);
             }
         } else {
             setIslandName("");
+            setSelectedIsland(null);
         }
     }, [formData.island, islands]);
 
-    // Fetch BP details in edit mode
+    // FIXED: Fetch BP details in edit mode - Use the data passed from parent instead of API call
     useEffect(() => {
-        const fetchBPDetails = async () => {
-            if (isEditMode && selectedBP && selectedBP.bp_id) {
-                try {
-                    setLoading(true);
-                    const response = await fetch(
-                        `${process.env.REACT_APP_LOCALHOST}/statistics/getBusinessRegister/${selectedBP.bp_id}`
-                    );
-
-                    if (response.ok) {
-                        const bpData = await response.json();
-                        populateFormData(bpData);
-                    } else {
-                        throw new Error('Failed to fetch BP details');
-                    }
-                } catch (error) {
-                    console.error("Error fetching BP details:", error);
-                    //   showToast("Failed to load BP details", "error");
-                    // Fallback to using selectedBP if API fails
-                    if (selectedBP) {
-                        populateFormData(selectedBP);
-                    }
-                } finally {
-                    setLoading(false);
-                }
-            }
-        };
-
-        if (showModal && isEditMode) {
-            fetchBPDetails();
+        if (showModal && isEditMode && selectedBP) {
+            populateFormData(selectedBP);
         }
     }, [showModal, isEditMode, selectedBP]);
 
     // Function to populate form data
     const populateFormData = (bpData) => {
-
-        setFormData({
-            register_name: bpData.register_name || "",
-            register_number: bpData.register_number || "",
-            service_provider: bpData.service_provider || "",
-            olt_owner: bpData.olt_owner || "",
-            network_type: bpData.network_type || "",
-            fiber_coax_convertor: bpData.fiber_coax_convertor || "",
+        const initialData = {
+            register_name: bpData.register_name || bpData.registerName || "",
+            register_number: bpData.register_number || bpData.registerNumber || "",
+            service_provider: bpData.service_provider || bpData.serviceProvider || "",
+            olt_owner: bpData.olt_owner || bpData.oltOwner || "",
+            network_type: bpData.network_type || bpData.networkType || "",
+            fiber_coax_convertor: bpData.fiber_coax_convertor || bpData.convertor || "",
             island: bpData.island_id || bpData.island || "",
             // TVRO fields - using exact API field names
             tvro_type: bpData.tvro_type || "",
@@ -202,7 +225,10 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
             vertical_signal: bpData.vertical_signal || "",
             horizontal_link_margin: bpData.horizontal_link_margin || "",
             vertical_link_margin: bpData.vertical_link_margin || "",
-        });
+        };
+
+        setFormData(initialData);
+        setInitialFormData(initialData);
 
         // Parse contact information
         let contactData = [];
@@ -222,9 +248,16 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
             }
         }
         setContacts(contactData);
+        setInitialContacts(contactData);
 
-        // Set signal timestamp - using the correct field name from API
-        setSignalTimestamp(bpData.signal_level_update_time || "");
+        // Set signal timestamp - Convert ISO format to Maldives time format
+        const timestamp = bpData.signal_level_update_time || bpData.signal_level_timestamp || "";
+        if (timestamp) {
+            const formattedTimestamp = convertISOTimestamp(timestamp);
+            setSignalTimestamp(formattedTimestamp);
+        } else {
+            setSignalTimestamp("");
+        }
 
         // Set URLs for existing files
         if (bpData.island_attach) {
@@ -246,6 +279,14 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
             setDishAntenaImageUrl(url);
         }
 
+        // Set initial files state
+        setInitialFiles({
+            island_attach: bpData.island_attach,
+            survey_form: bpData.survey_form,
+            network_diagram: bpData.network_diagram,
+            dish_antena_image: bpData.dish_antena_image
+        });
+
         // Reset file change tracking
         setFilesChanged({
             island_attach: false,
@@ -266,13 +307,16 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
         setSurveyFormFile(null);
         setNetworkDiagramFile(null);
         setDishAntenaImageFile(null);
+
+        // Reset form modified state
+        setIsFormModified(false);
     };
 
     // Reset form when modal opens for add mode
     useEffect(() => {
         if (showModal && !isEditMode) {
             // Add mode - reset everything
-            setFormData({
+            const emptyData = {
                 register_name: "",
                 register_number: "",
                 service_provider: "",
@@ -290,8 +334,12 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
                 vertical_signal: "",
                 horizontal_link_margin: "",
                 vertical_link_margin: "",
-            });
+            };
+
+            setFormData(emptyData);
+            setInitialFormData(emptyData);
             setContacts([]);
+            setInitialContacts([]);
             setSignalTimestamp("");
             setIslandAttachFile(null);
             setIslandAttachUrl(null);
@@ -313,7 +361,14 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
                 network_diagram: false,
                 dish_antena_image: false
             });
+            setInitialFiles({
+                island_attach: null,
+                survey_form: null,
+                network_diagram: null,
+                dish_antena_image: null
+            });
             setIslandName("");
+            setSelectedIsland(null);
 
             // Reset editing states
             setEditingIndex(null);
@@ -322,8 +377,29 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
             // Reset search
             setIslandSearchTerm('');
             setFilteredIslands(islands);
+
+            // In add mode, form is always considered modified since we start with empty data
+            setIsFormModified(true);
         }
     }, [showModal, isEditMode, islands]);
+
+    // Check if form has been modified
+    useEffect(() => {
+        if (!showModal || !initialFormData) return;
+
+        // Check if form data has changed
+        const isDataChanged = Object.keys(formData).some(key =>
+            formData[key] !== initialFormData[key]
+        );
+
+        // Check if contacts have changed
+        const isContactsChanged = JSON.stringify(contacts) !== JSON.stringify(initialContacts);
+
+        // Check if files have changed
+        const isFilesChanged = Object.values(filesChanged).some(value => value === true);
+
+        setIsFormModified(isDataChanged || isContactsChanged || isFilesChanged);
+    }, [formData, contacts, filesChanged, initialFormData, initialContacts, showModal]);
 
     // --- Signal Calculation Functions ---
     const calculateHorizontalLinkMargin = (horizontalSignal) => {
@@ -354,15 +430,29 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
             return updatedFormData;
         });
 
-        setSignalTimestamp(new Date().toLocaleString());
+        // Use Maldives timezone
+        setSignalTimestamp(getMaldivesTime());
     };
 
-    // Handle island search
-    const handleIslandSearch = (searchTerm) => {
-        setIslandSearchTerm(searchTerm);
-        if (searchTerm) {
+    // Handle island selection from Autocomplete
+    const handleIslandChange = (event, newValue) => {
+        if (newValue) {
+            setFormData({ ...formData, island: newValue.island_id });
+            setSelectedIsland(newValue);
+            setIslandName(newValue.island_name);
+        } else {
+            setFormData({ ...formData, island: '' });
+            setSelectedIsland(null);
+            setIslandName("");
+        }
+    };
+
+    // Handle island search input change
+    const handleIslandInputChange = (event, newInputValue) => {
+        setIslandSearchTerm(newInputValue);
+        if (newInputValue) {
             const filtered = islands.filter(island =>
-                island.island_name.toLowerCase().includes(searchTerm.toLowerCase())
+                island.island_name.toLowerCase().includes(newInputValue.toLowerCase())
             );
             setFilteredIslands(filtered);
         } else {
@@ -370,21 +460,13 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
         }
     };
 
-    // Clear island selection
-    const handleClearIsland = () => {
-        setFormData({ ...formData, island: '' });
-        setIslandSearchTerm('');
-        setFilteredIslands(islands);
-        setIslandName("");
-    };
-
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
 
-        // Update timestamp for signal-related fields
+        // Update timestamp for signal-related fields with Maldives timezone
         if (["horizontal_signal", "vertical_signal", "horizontal_link_margin", "vertical_link_margin"].includes(name)) {
-            setSignalTimestamp(new Date().toLocaleString());
+            setSignalTimestamp(getMaldivesTime());
         }
     };
 
@@ -546,6 +628,23 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
         setEditingIndex(null);
     };
 
+    // Handle dialog close to prevent closing on backdrop click
+    const handleDialogClose = (event, reason) => {
+        // Prevent closing when clicking backdrop
+        if (reason === "backdropClick") {
+            return;
+        }
+        // Only allow closing via cancel button or close icon
+        if (reason === "escapeKeyDown") {
+            return;
+        }
+    };
+
+    // Handle cancel button click
+    const handleCancel = () => {
+        setShowModal(false);
+    };
+
     // Function to truncate long text with ellipsis
     const truncateText = (text, maxLength = 20) => {
         if (!text) return "";
@@ -586,17 +685,8 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
             return showToast("Please fill register name and select island", "error");
         }
 
-        const options = {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false
-        };
-
-        const formattedDate = new Date().toLocaleString("en-GB", options).replace(",", "");
+        // Use Maldives timezone for formatted date
+        const formattedDate = getMaldivesTime();
 
         // Create FormData for file uploads
         const formDataToSend = new FormData();
@@ -617,7 +707,7 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
         formDataToSend.append('dish_brand', formData.dish_brand);
         formDataToSend.append('dish_antena_size', formData.dish_antena_size);
 
-        // Append Signal fields with timestamp
+        // Append Signal fields with Maldives timestamp
         formDataToSend.append('horizontal_signal', formData.horizontal_signal);
         formDataToSend.append('vertical_signal', formData.vertical_signal);
         formDataToSend.append('horizontal_link_margin', formData.horizontal_link_margin);
@@ -688,7 +778,7 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
         setLoading(true);
         try {
             const url = isEditMode
-                ? `${process.env.REACT_APP_LOCALHOST}/statistics/updateBusinessRegister/update/${selectedBP.bp_id}`
+                ? `${process.env.REACT_APP_LOCALHOST}/statistics/updateBusinessRegister/update/${selectedBP.bp_id || selectedBP.id}`
                 : `${process.env.REACT_APP_LOCALHOST}/statistics/addBusinessRegister/add`;
 
             const response = await fetch(url, {
@@ -726,13 +816,14 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
     return (
         <Dialog
             open={showModal}
-            onClose={() => setShowModal(false)}
+            onClose={handleDialogClose}
             maxWidth={false}
             PaperProps={{ sx: { width: "1200px", height: "700px", maxHeight: "95vh", p: 2 } }}
+            disableEscapeKeyDown
         >
             <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 10 }}>
                 {isEditMode ? "Edit BP Details" : "Add New BP"}
-                <IconButton onClick={() => setShowModal(false)}>
+                <IconButton onClick={handleCancel}>
                     <CloseIcon />
                 </IconButton>
             </DialogTitle>
@@ -754,56 +845,27 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
                             <Grid container spacing={6} sx={{ mb: 2 }}>
                                 <Grid item xs={12} sm={4} width={240}>
                                     <FormControl fullWidth size="small" required error={!formData.island}>
-                                        <Select
-                                            displayEmpty
-                                            name="island"
-                                            value={formData.island}
-                                            onChange={handleChange}
-                                            MenuProps={{
-                                                autoFocus: false,
-                                                PaperProps: {
-                                                    style: {
-                                                        maxHeight: 300,
-                                                        marginTop: 8,
-                                                    },
-                                                },
-                                            }}
-                                            endAdornment={
-                                                formData.island && (
-                                                    <InputAdornment position="end">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={handleClearIsland}
-                                                            edge="end"
-                                                            sx={{ mr: 1 }}
-                                                        >
-                                                            <CloseIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </InputAdornment>
-                                                )
-                                            }
-                                        >
-                                            <MenuItem value="" disabled>
-                                                Select Island
-                                            </MenuItem>
-
-                                            {filteredIslands.length === 0 ? (
-                                                <MenuItem disabled>
-                                                    No islands found
-                                                </MenuItem>
-                                            ) : (
-                                                filteredIslands.map((island) => (
-                                                    <MenuItem key={island.island_id} value={island.island_id}>
-                                                        {island.island_name}
-                                                    </MenuItem>
-                                                ))
+                                        <Autocomplete
+                                            options={filteredIslands}
+                                            getOptionLabel={(option) => option.island_name}
+                                            value={selectedIsland}
+                                            onChange={handleIslandChange}
+                                            onInputChange={handleIslandInputChange}
+                                            inputValue={islandSearchTerm}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    label="Select Island"
+                                                    placeholder="Type to search island..."
+                                                    required
+                                                    error={!formData.island}
+                                                    helperText={!formData.island ? "Please select an island" : ""}
+                                                />
                                             )}
-                                        </Select>
-                                        {!formData.island && (
-                                            <Typography variant="caption" color="error" sx={{ ml: 1.5, mt: 0.5 }}>
-                                                Please select an island
-                                            </Typography>
-                                        )}
+                                            size="small"
+                                            noOptionsText="No islands found"
+                                            sx={{ width: '100%' }}
+                                        />
                                     </FormControl>
                                 </Grid>
 
@@ -908,6 +970,72 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
                                 </Grid>
                             </Grid>
 
+
+
+                            {/* 4th Row: TVRO Information */}
+                            <Typography variant="h6" color="primary" sx={{ mt: 1, mb: 1, fontWeight: 'bold' }}>
+                                TVRO Information
+                            </Typography>
+
+                            <Grid container spacing={6} sx={{ mb: 2 }}>
+                                <Grid item xs={12} sm={3} width={240}>
+                                    <FormControl fullWidth size="small">
+                                        <Select
+                                            displayEmpty
+                                            name="tvro_type"
+                                            value={formData.tvro_type}
+                                            onChange={handleChange}
+                                        >
+                                            <MenuItem value="" disabled>
+                                                TVRO Type
+                                            </MenuItem>
+                                            <MenuItem value="MMDS">MMDS</MenuItem>
+                                            <MenuItem value="Satellite">Satellite</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+
+                                <Grid item xs={12} sm={3} width={240}>
+                                    <FormControl fullWidth size="small">
+                                        <Select
+                                            displayEmpty
+                                            name="dish_type"
+                                            value={formData.dish_type}
+                                            onChange={handleChange}
+                                        >
+                                            <MenuItem value="" disabled>
+                                                Dish Type
+                                            </MenuItem>
+                                            <MenuItem value="Solid">Solid</MenuItem>
+                                            <MenuItem value="Mesh">Mesh</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+
+                                <Grid item xs={12} sm={3} width={240}>
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="Dish Brand"
+                                        name="dish_brand"
+                                        value={formData.dish_brand}
+                                        onChange={handleChange}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={3} width={240}>
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="Dish Antenna Size"
+                                        name="dish_antena_size"
+                                        value={formData.dish_antena_size}
+                                        onChange={handleChange}
+                                    />
+                                </Grid>
+                            </Grid>
+
+
                             {/* 3rd Row: Signal Levels */}
                             <Typography variant="h6" color="primary" sx={{ mt: 1, mb: 1, fontWeight: 'bold' }}>
                                 Signal Levels
@@ -977,69 +1105,6 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
                                     </Typography>
                                 )}
                             </Box>
-
-                            {/* 4th Row: TVRO Information */}
-                            <Typography variant="h6" color="primary" sx={{ mt: 1, mb: 1, fontWeight: 'bold' }}>
-                                TVRO Information
-                            </Typography>
-
-                            <Grid container spacing={6} sx={{ mb: 2 }}>
-                                <Grid item xs={12} sm={3} width={240}>
-                                    <FormControl fullWidth size="small">
-                                        <Select
-                                            displayEmpty
-                                            name="tvro_type"
-                                            value={formData.tvro_type}
-                                            onChange={handleChange}
-                                        >
-                                            <MenuItem value="" disabled>
-                                                TVRO Type
-                                            </MenuItem>
-                                            <MenuItem value="MMDS">MMDS</MenuItem>
-                                            <MenuItem value="Satellite">Satellite</MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-
-                                <Grid item xs={12} sm={3} width={240}>
-                                    <FormControl fullWidth size="small">
-                                        <Select
-                                            displayEmpty
-                                            name="dish_type"
-                                            value={formData.dish_type}
-                                            onChange={handleChange}
-                                        >
-                                            <MenuItem value="" disabled>
-                                                Dish Type
-                                            </MenuItem>
-                                            <MenuItem value="Solid">Solid</MenuItem>
-                                            <MenuItem value="Mesh">Mesh</MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-
-                                <Grid item xs={12} sm={3} width={240}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        label="Dish Brand"
-                                        name="dish_brand"
-                                        value={formData.dish_brand}
-                                        onChange={handleChange}
-                                    />
-                                </Grid>
-
-                                <Grid item xs={12} sm={3} width={240}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        label="Dish Antenna Size"
-                                        name="dish_antena_size"
-                                        value={formData.dish_antena_size}
-                                        onChange={handleChange}
-                                    />
-                                </Grid>
-                            </Grid>
 
                             {/* 5th Row: Contact Information */}
                             <Box sx={{ position: "relative", mt: 2, width: "87%" }}>
@@ -1386,7 +1451,7 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
                                     Document & File Uploads
                                 </Typography>
 
-                                <Grid container spacing={3}>
+                                <Grid container spacing={8}>
                                     {/* Column 1 - Island Attach CSV */}
                                     <Grid item xs={12} md={3}>
                                         <Box sx={{ textAlign: 'center' }}>
@@ -1675,10 +1740,14 @@ const AddBPModal = ({ showModal, setShowModal, selectedBP, onSaveBP }) => {
 
             <Divider />
             <DialogActions sx={{ p: 2, height: 10, gap: 2 }}>
-                <Button variant="outlined" onClick={() => setShowModal(false)}>
+                <Button variant="outlined" onClick={handleCancel}>
                     Cancel
                 </Button>
-                <Button variant="contained" onClick={handleSaveBP} disabled={loading}>
+                <Button
+                    variant="contained"
+                    onClick={handleSaveBP}
+                    disabled={loading || (isEditMode && !isFormModified)}
+                >
                     {loading ? "Saving..." : "Save BP"}
                 </Button>
             </DialogActions>

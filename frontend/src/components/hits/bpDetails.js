@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AddBpModal from "../modals/addBpModal";
 import ViewBpModal from '../modals/viewBpModal';
 
@@ -38,6 +38,15 @@ import { canAccess } from '../../rbac/canAccess.js';
 
 import jsPDF from "jspdf";
 
+// Cache for islands data to prevent repeated API calls
+let islandsCache = null;
+let islandsCacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+// Cache for BP data
+let bpCache = null;
+let bpCacheTimestamp = null;
+
 const BpDetails = () => {
     const [tableData, setTableData] = useState([]);
     const [showModal, setShowModal] = useState(false);
@@ -50,6 +59,7 @@ const BpDetails = () => {
     const [viewBp, setViewBp] = useState(null);
     const [shake, setShake] = useState(false);
     const [islands, setIslands] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [menuBpId, setMenuBpId] = useState(null);
@@ -60,104 +70,165 @@ const BpDetails = () => {
 
     const itemsPerPage = 8;
 
-    useEffect(() => {
-        fetchBpDetails();
-        fetchIslands();
-        setCurrentPage(1);
-    }, []);
+    // Optimized fetch islands with caching
+    const fetchIslands = useCallback(async () => {
+        // Return cached data if available and not expired
+        const now = Date.now();
+        if (islandsCache && islandsCacheTimestamp && (now - islandsCacheTimestamp) < CACHE_DURATION) {
+            setIslands(islandsCache);
+            return islandsCache;
+        }
 
-    // Fetch islands data from API
-    const fetchIslands = async () => {
         try {
             const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/getIslandInformations`);
             if (response.ok) {
                 const data = await response.json();
+                // Cache the data
+                islandsCache = data;
+                islandsCacheTimestamp = now;
                 setIslands(data);
+                return data;
             } else {
                 throw new Error('Failed to fetch islands');
             }
         } catch (error) {
             console.error("Error fetching islands:", error);
             showToast("Failed to load islands data", "error");
+            return [];
         }
-    };
+    }, []);
 
-    // Get island name by island_id
-    const getIslandName = (islandId) => {
-        if (!islandId || islands.length === 0) return "Loading...";
-        const island = islands.find(item => item.island_id === islandId);
-        return island ? island.island_name : "Unknown Island";
-    };
+    // Get island name by island_id - optimized with caching
+    const getIslandName = useCallback((islandId) => {
+        if (!islandId) return "N/A";
 
-    const fetchBpDetails = async () => {
+        // First check in current state
+        if (islands.length > 0) {
+            const island = islands.find(item => item.island_id === islandId);
+            return island ? island.island_name : "Unknown Island";
+        }
+
+        // Then check in cache
+        if (islandsCache && islandsCache.length > 0) {
+            const island = islandsCache.find(item => item.island_id === islandId);
+            return island ? island.island_name : "Unknown Island";
+        }
+
+        return "N/A";
+    }, [islands]);
+
+    // Optimized fetch BP details with parallel execution and caching
+    const fetchBpDetails = useCallback(async (useCache = true) => {
+        const now = Date.now();
+
+        // Return cached data if available and not expired
+        if (useCache && bpCache && bpCacheTimestamp && (now - bpCacheTimestamp) < CACHE_DURATION) {
+            setTableData(bpCache);
+            return bpCache;
+        }
+
+        setIsLoading(true);
         try {
-            const response = await fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/getAllBusinessRegisters`);
+            // Fetch both BP details and islands in parallel
+            const [bpResponse, islandsData] = await Promise.all([
+                fetch(`${process.env.REACT_APP_LOCALHOST}/statistics/getAllBusinessRegisters`),
+                fetchIslands() // This will use cache if available
+            ]);
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (!bpResponse.ok) {
+                throw new Error(`HTTP error! status: ${bpResponse.status}`);
             }
 
-            const data = await response.json();
+            const bpData = await bpResponse.json();
 
             // Handle different response formats and map the data
             let extractedData = [];
 
-            if (Array.isArray(data)) {
-                extractedData = data;
-            } else if (data && Array.isArray(data.data)) {
-                extractedData = data.data;
-            } else if (data && Array.isArray(data.businessRegisters)) {
-                extractedData = data.businessRegisters;
+            if (Array.isArray(bpData)) {
+                extractedData = bpData;
+            } else if (bpData && Array.isArray(bpData.data)) {
+                extractedData = bpData.data;
+            } else if (bpData && Array.isArray(bpData.businessRegisters)) {
+                extractedData = bpData.businessRegisters;
             } else {
-                console.warn('Unexpected data format:', data);
+                console.warn('Unexpected data format:', bpData);
                 extractedData = [];
             }
 
             // Map API data to table structure with all required fields
-            const mappedData = extractedData.map(item => ({
-                id: item.business_id || item.id,
-                registerName: item.register_name || "",
-                registerNumber: item.register_number || "",
-                serviceProvider: item.service_provider || "",
-                oltOwner: item.olt_owner || "",
-                networkType: item.network_type || "",
-                convertor: item.fiber_coax_convertor || "",
-                contactInformation: item.contact_information || "",
-                islandName: item.island_name || getIslandName(item.island_id),
-                islandId: item.island_id,
-                islandAttachFiles: item.island_attach_files || [],
-                // Include the actual file buffer data and other original fields
-                island_attach: item.island_attach,
-                island_attach_name: item.island_attach_name,
-                island_attach_type: item.island_attach_type,
-                island_id: item.island_id,
-                createdAt: item.created_at,
-                updatedAt: item.updated_at,
-                actions: item.actions,
-                // TVRO fields
-                tvro_type: item.tvro_type,
-                dish_type: item.dish_type,
-                dish_brand: item.dish_brand,
-                dish_antena_size: item.dish_antena_size,
-                // Signal fields
-                horizontal_signal: item.horizontal_signal,
-                vertical_signal: item.vertical_signal,
-                horizontal_link_margin: item.horizontal_link_margin,
-                vertical_link_margin: item.vertical_link_margin,
-                signal_level_update_time: item.signal_level_update_time,
-                // Include all original fields for backward compatibility
-                ...item
-            }));
+            const mappedData = extractedData.map(item => {
+                // Get island name immediately using the already fetched islands data
+                const islandName = item.island_name || getIslandName(item.island_id);
+
+                return {
+                    id: item.business_id || item.id,
+                    registerName: item.register_name || "",
+                    registerNumber: item.register_number || "",
+                    serviceProvider: item.service_provider || "",
+                    oltOwner: item.olt_owner || "",
+                    networkType: item.network_type || "",
+                    convertor: item.fiber_coax_convertor || "",
+                    contactInformation: item.contact_information || "",
+                    islandName: islandName, // Use the immediately available name
+                    islandId: item.island_id,
+                    islandAttachFiles: item.island_attach_files || [],
+                    // Include the actual file buffer data and other original fields
+                    island_attach: item.island_attach,
+                    island_attach_name: item.island_attach_name,
+                    island_attach_type: item.island_attach_type,
+                    island_id: item.island_id,
+                    createdAt: item.created_at,
+                    updatedAt: item.updated_at,
+                    actions: item.actions,
+                    // TVRO fields
+                    tvro_type: item.tvro_type,
+                    dish_type: item.dish_type,
+                    dish_brand: item.dish_brand,
+                    dish_antena_size: item.dish_antena_size,
+                    // Signal fields
+                    horizontal_signal: item.horizontal_signal,
+                    vertical_signal: item.vertical_signal,
+                    horizontal_link_margin: item.horizontal_link_margin,
+                    vertical_link_margin: item.vertical_link_margin,
+                    signal_level_update_time: item.signal_level_update_time,
+                    // Include all original fields for backward compatibility
+                    ...item
+                };
+            });
+
+            // Cache the data
+            bpCache = mappedData;
+            bpCacheTimestamp = now;
+
             setTableData(mappedData);
+            setIsLoading(false);
+            return mappedData;
         } catch (error) {
             console.error('Fetch failed:', error);
             setTableData([]);
+            setIsLoading(false);
+            return [];
         }
-    };
+    }, [fetchIslands, getIslandName]);
+
+    useEffect(() => {
+        // Load data immediately from cache if available
+        if (bpCache) {
+            setTableData(bpCache);
+        }
+
+        // Then fetch fresh data in background
+        fetchBpDetails();
+        setCurrentPage(1);
+
+        // Pre-fetch islands if not in cache for future use
+        if (!islandsCache) {
+            fetchIslands();
+        }
+    }, [fetchBpDetails, fetchIslands]);
 
     // Enhanced handleEdit function to properly handle file data
     const handleEdit = (bp) => {
-
         // Create a properly formatted object for the edit modal
         const editBpData = {
             // Core fields for the modal
@@ -233,7 +304,9 @@ const BpDetails = () => {
             showToast("BP details deleted successfully!", "success");
             setOpen(false);
             setSelectedBpId(null);
-            fetchBpDetails(); // Refresh the data
+            // Clear cache and refresh data
+            bpCache = null;
+            fetchBpDetails(false);
         } catch (err) {
             console.error("Error deleting BP details:", err);
             showToast("Error deleting BP details!", "error");
@@ -271,6 +344,44 @@ const BpDetails = () => {
         }
     };
 
+    // NEW: Format contact information for CSV export
+    const formatContactInformationForCSV = (contactInfo) => {
+        if (!contactInfo) return "";
+
+        try {
+            let contacts = [];
+
+            if (Array.isArray(contactInfo)) {
+                contacts = contactInfo;
+            } else if (typeof contactInfo === 'string') {
+                if (contactInfo.trim().startsWith('[') && contactInfo.trim().endsWith(']')) {
+                    contacts = JSON.parse(contactInfo);
+                } else if (contactInfo.trim().startsWith('{') && contactInfo.trim().endsWith('}')) {
+                    contacts = [JSON.parse(contactInfo)];
+                } else {
+                    return contactInfo; // Return as is if it's a plain string
+                }
+            } else if (typeof contactInfo === 'object' && contactInfo !== null) {
+                contacts = [contactInfo];
+            }
+
+            // Format each contact as: name,email,phone,designation
+            const formattedContacts = contacts.map(contact => {
+                const name = contact.name || "";
+                const email = contact.email || "";
+                const phone = contact.phone || "";
+                const designation = contact.designation || "";
+
+                return `${name},${email},${phone},${designation}`;
+            });
+
+            return formattedContacts.join(' | ');
+        } catch (error) {
+            console.error('Error formatting contact information for CSV:', error);
+            return "";
+        }
+    };
+
     const filteredData = tableData.filter((item) => {
         const searchTermLower = searchTerm.toLowerCase();
 
@@ -292,8 +403,17 @@ const BpDetails = () => {
         currentPage * itemsPerPage
     );
 
-    // CSV export function for BP details - UPDATED WITH ALL FIELDS
+    // Check if table has data for download
+    const hasDataForDownload = filteredData.length > 0;
+
+    // CSV export function for BP details - UPDATED WITH PROPER CONTACT FORMATTING
     const exportToCSV = () => {
+        // Check if there's data to export
+        if (!hasDataForDownload) {
+            showToast("No data available to download!", "warning");
+            return;
+        }
+
         const headers = [
             "No.",
             "Register Name",
@@ -301,8 +421,8 @@ const BpDetails = () => {
             "Service Provider",
             "OLT Owner",
             "Network Type",
-            "Island Name", // CHANGED: Convertor to Island Name
-            "Fiber Coax Convertor", // MOVED: Convertor to new position
+            "Island Name",
+            "Fiber Coax Convertor",
             "TVRO Type",
             "Dish Type",
             "Dish Brand",
@@ -313,8 +433,6 @@ const BpDetails = () => {
             "Vertical Link Margin",
             "Signal Last Updated",
             "Contact Information",
-
-
         ];
 
         const escapeCSV = (value) => {
@@ -331,8 +449,8 @@ const BpDetails = () => {
                 escapeCSV(item.serviceProvider),
                 escapeCSV(item.oltOwner),
                 escapeCSV(item.networkType),
-                escapeCSV(item.islandName), // CHANGED: Island Name instead of Convertor
-                escapeCSV(item.convertor), // MOVED: Convertor to new position
+                escapeCSV(item.islandName),
+                escapeCSV(item.convertor),
                 escapeCSV(item.tvro_type),
                 escapeCSV(item.dish_type),
                 escapeCSV(item.dish_brand),
@@ -342,9 +460,7 @@ const BpDetails = () => {
                 escapeCSV(item.vertical_signal),
                 escapeCSV(item.vertical_link_margin),
                 escapeCSV(item.signal_level_update_time || ""),
-                escapeCSV(formatContactInformationForSearch(item.contactInformation)),
-
-
+                escapeCSV(formatContactInformationForCSV(item.contactInformation)), // Use the new formatted contact info
             ];
         });
 
@@ -390,6 +506,12 @@ const BpDetails = () => {
 
     // PDF export function for BP details - UPDATED WITH ALL FIELDS
     const exportToPDF = () => {
+        // Check if there's data to export
+        if (!hasDataForDownload) {
+            showToast("No data available to download!", "warning");
+            return;
+        }
+
         const doc = new jsPDF('portrait');
 
         const checkPageBreak = (currentY, requiredSpace = 20) => {
@@ -615,6 +737,11 @@ const BpDetails = () => {
     };
 
     const handleOpenDownloadMenu = (event) => {
+        // Check if there's data before opening download menu
+        if (!hasDataForDownload) {
+            showToast("No data available to download! Please add at least one BP record.", "warning");
+            return;
+        }
         setDownloadAnchorEl(event.currentTarget);
     };
 
@@ -680,19 +807,12 @@ const BpDetails = () => {
 
     // Enhanced Handle Save BP with proper file handling
     const handleSaveBp = async (savedData) => {
-
         try {
-            // Refresh the table data
-            await fetchBpDetails();
+            // Clear cache and refresh data
+            bpCache = null;
+            await fetchBpDetails(false);
             setShowModal(false);
             setSelectedBp(null);
-
-            // Show success message
-            if (savedData && savedData.business_id) {
-
-            } else {
-
-            }
         } catch (error) {
             console.error('Error refreshing data after save:', error);
             showToast("BP details saved but there was an error refreshing the table.", "warning");
@@ -732,7 +852,11 @@ const BpDetails = () => {
                     variant="contained"
                     startIcon={<GetApp />}
                     onClick={handleOpenDownloadMenu}
-                    sx={{ borderRadius: "9px", textTransform: "none", backgroundColor: "green" }}
+                    sx={{
+                        borderRadius: "9px",
+                        textTransform: "none",
+                        backgroundColor: "green"
+                    }}
                 >
                     Download
                 </Button>
@@ -788,7 +912,6 @@ const BpDetails = () => {
                                 " Provider",
                                 "OLT Owner",
                                 "Network Type",
-                                // CHANGED: Convertor to Island Name
                                 "Actions",
                             ].map((label, i) => (
                                 <TableCell
@@ -824,7 +947,7 @@ const BpDetails = () => {
                                         fontStyle: "italic"
                                     }}
                                 >
-                                    No BP details found matching the criteria.
+                                    {tableData.length === 0 ? "No BP details available" : "No BP details found matching the criteria."}
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -872,8 +995,6 @@ const BpDetails = () => {
                                                 <span>{item.networkType || ""}</span>
                                             </Tooltip>
                                         </TableCell>
-
-
 
                                         <TableCell align="center" sx={{ width: "8%", padding: "8px 4px" }}>
                                             <IconButton onClick={(e) => handleOpenMenu(e, item.id)}>

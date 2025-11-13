@@ -37,26 +37,44 @@ const ROLE_PERMISSIONS = {
         bpDetails: { view: true, edit: true },
     },
     sales: {
-        dashboard: { view: true, edit: false },
+        dashboard: { view: true, edit: true },
+        resortList: { view: false, edit: false },
+        resortIncidents: { view: false, edit: false },
+        streamerConfig: { view: false, edit: false },
+        rbacManagement: { view: false, edit: false },
+        islandInformations: { view: true, edit: true },
+        bpDetails: { view: true, edit: true },
+    },
+    finance: {
+        dashboard: { view: true, edit: true },
         resortList: { view: true, edit: false },
         resortIncidents: { view: false, edit: false },
         streamerConfig: { view: true, edit: false },
         rbacManagement: { view: false, edit: false },
-        islandInformations: { view: true, edit: false },
-        bpDetails: { view: true, edit: false },
+        islandInformations: { view: false, edit: false },
+        bpDetails: { view: false, edit: false },
+    },
+    corporate: {
+        dashboard: { view: true, edit: true },
+        resortList: { view: true, edit: false },
+        resortIncidents: { view: false, edit: false },
+        streamerConfig: { view: true, edit: false },
+        rbacManagement: { view: false, edit: false },
+        islandInformations: { view: false, edit: false },
+        bpDetails: { view: false, edit: false },
     },
     technician: {
-        dashboard: { view: true, edit: false },
+        dashboard: { view: true, edit: true },
         resortList: { view: true, edit: false },
         resortIncidents: { view: true, edit: false },
         streamerConfig: { view: true, edit: false },
         rbacManagement: { view: false, edit: false },
-        islandInformations: { view: true, edit: false },
-        bpDetails: { view: true, edit: false },
+        islandInformations: { view: false, edit: false },
+        bpDetails: { view: false, edit: false },
     },
     // Fallback/Default structure for any new role
     default: {
-        dashboard: { view: false, edit: false },
+        dashboard: { view: true, edit: true },
         resortList: { view: false, edit: false },
         resortIncidents: { view: false, edit: false },
         streamerConfig: { view: false, edit: false },
@@ -270,6 +288,8 @@ const AddUserModal = ({ open, onClose, onSave }) => {
                     <MenuItem value="admin">Admin</MenuItem>
                     <MenuItem value="manager">Manager</MenuItem>
                     <MenuItem value="sales">Sales</MenuItem>
+                    <MenuItem value="finance">Finance</MenuItem>
+                    <MenuItem value="corporate">Corporate</MenuItem>
                     <MenuItem value="technician">Technician</MenuItem>
                 </TextField>
             </DialogContent>

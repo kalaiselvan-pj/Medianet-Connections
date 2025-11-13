@@ -62,7 +62,17 @@ export default function ResetPassword() {
   return (
     <div className="login-container">
       <form onSubmit={handleSubmit} className="login-form">
-        <h2>Reset Password</h2>
+        <h2
+          style={{
+            textAlign: "center",
+            marginBottom: "20px",
+            marginTop: "6px",
+            background: "linear-gradient(358deg, rgb(255 255 255 / 99%), rgb(192 192 192 / 67%)) text",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            fontWeight: "bold",
+          }}
+        >Reset Password</h2>
 
         <div className={`input-wrapper ${password ? "filled" : ""}`}>
           <FaLock className="input-icon" />

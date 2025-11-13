@@ -962,7 +962,7 @@ export const getIslandInformations = async () => {
       FROM island_informations ii
       LEFT JOIN business_partner bp ON ii.island_id = bp.island_id
       GROUP BY ii.island_id
-      ORDER BY ii.created_at DESC
+      ORDER BY ii.island_name ASC
     `);
 
     // Process the results to convert register_names string to array
@@ -1238,8 +1238,6 @@ export const getBusinessRegisters = async () => {
       `SELECT * FROM business_partner
        ORDER BY register_name ASC`
     );
-
-
     return rows;
   } catch (error) {
     console.error('Database error while fetching business registers:', error);

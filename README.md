@@ -1,6 +1,6 @@
 # Medianet Connections
 
-This project is for managing and analyzing Medianet Islands Connection services.  
+This project is for managing and analyzing Medianet Island Reports services.  
 It includes features like:
 - User authentication and login
 - Active users tracking
