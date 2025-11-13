@@ -22,8 +22,6 @@ import {
 import {
     Business,
     Description,
-    PictureAsPdf,
-    Image,
     People,
     AccessTime,
     SettingsEthernet,
@@ -71,6 +69,33 @@ const ViewBpModal = ({ open, onClose, bpData }) => {
             setIslandName("");
         }
     }, [bpData?.island_id, bpData?.island_name, islands]);
+
+    // Format date to local string
+    const formatDate = (dateString) => {
+        if (!dateString) return "N/A";
+
+        try {
+            const date = new Date(dateString);
+
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return "Invalid Date";
+            }
+
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+        } catch (error) {
+            console.error("Error formatting date:", error);
+            return "Invalid Date";
+        }
+    };
 
     // Enhanced buffer to URL conversion
     const bufferToUrl = (bufferData, mimeType) => {
@@ -242,7 +267,6 @@ const ViewBpModal = ({ open, onClose, bpData }) => {
 
         // If it's already an array, return it directly
         if (Array.isArray(contactInfo)) {
-
             return contactInfo;
         }
 
@@ -260,7 +284,6 @@ const ViewBpModal = ({ open, onClose, bpData }) => {
                 // Replace escaped quotes
                 cleanString = cleanString.replace(/\\"/g, '"');
                 const parsed = JSON.parse(cleanString);
-
 
                 if (Array.isArray(parsed)) {
                     return parsed;
@@ -674,10 +697,10 @@ const ViewBpModal = ({ open, onClose, bpData }) => {
                                                     }}
                                                 >
                                                     <Typography variant="subtitle2" color="textSecondary">
-                                                        Singal Level Last Updated
+                                                        Signal Level Last Updated
                                                     </Typography>
                                                     <Typography variant="body2" sx={{ fontWeight: "medium" }}>
-                                                        {bpData.signal_level_update_time}
+                                                        {formatDate(bpData.signal_level_update_time)}
                                                     </Typography>
                                                 </Box>
                                             )}
@@ -693,9 +716,7 @@ const ViewBpModal = ({ open, onClose, bpData }) => {
                                                     Last Updated
                                                 </Typography>
                                                 <Typography variant="body2" sx={{ fontWeight: "medium" }}>
-                                                    {bpData.updatedAt || bpData.updated_at
-                                                        ? new Date(bpData.updatedAt || bpData.updated_at).toLocaleString()
-                                                        : "N/A"}
+                                                    {formatDate(bpData.updatedAt || bpData.updated_at)}
                                                 </Typography>
                                             </Box>
                                         </Box>

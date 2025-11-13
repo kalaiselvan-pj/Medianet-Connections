@@ -115,7 +115,17 @@ const Login = () => {
     <div className="login-container">
       <form onSubmit={handleSubmit} className="login-form">
         <img src={medianetLogo} alt="Medianet Logo" className="login-logo" />
-        <h2>Welcome Back!</h2>
+        <h2
+          style={{
+            textAlign: "center",
+            marginBottom: "20px",
+            marginTop: "6px",
+            background: "linear-gradient(358deg, rgb(255 255 255 / 99%), rgb(192 192 192 / 67%)) text",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            fontWeight: "bold",
+          }}
+        >Welcome Back!</h2>
 
         {/* Email Input */}
         <div className={`input-wrapper ${email ? "filled" : ""} ${errors.email ? "error" : ""}`}>

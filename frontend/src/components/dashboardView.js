@@ -138,7 +138,7 @@ const DashboardView = () => {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      height: '100vh',
+      height: '92vh',
       fontSize: '14px',
       color: '#666'
     }}>
@@ -149,30 +149,31 @@ const DashboardView = () => {
   return (
     <div
       style={{
-        padding: "12px",
+        // padding: "12px",
         backgroundColor: "#f8f9fa",
-        height: "100vh",
+        height: "92vh",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        gap: "20px",
+        gap: "12px",
       }}
     >
-      {/* Header */}
+      {/* Header - Resort Analytics */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: "8px 12px",
+        padding: "12px 16px",
         backgroundColor: "#fff",
         borderRadius: "6px",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        height: "42px"
       }}>
         <div>
           <h1 style={{
             margin: 0,
             color: "#1a1a1a",
-            fontSize: "16px",
+            fontSize: "17px",
             fontWeight: "600"
           }}>
             Resort Analytics
@@ -180,26 +181,27 @@ const DashboardView = () => {
           <p style={{
             margin: "2px 0 0 0",
             color: "#666",
-            fontSize: "12px"
+            fontSize: "13px"
           }}>
             Complete overview
           </p>
         </div>
         <div style={{
           display: 'flex',
-          gap: '15px',
+          gap: '20px',
           alignItems: 'center'
         }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{
-              fontSize: "12px",
+              fontSize: "13px",
               color: "#666",
-              marginBottom: "2px"
+              marginBottom: "2px",
+              fontWeight: 500
             }}>
               Categories
             </div>
             <div style={{
-              fontSize: "17px",
+              fontSize: "18px",
               fontWeight: "700",
               color: "#569fdfff"
             }}>
@@ -213,14 +215,15 @@ const DashboardView = () => {
           }}></div>
           <div style={{ textAlign: 'center' }}>
             <div style={{
-              fontSize: "12px",
+              fontSize: "13px",
               color: "#666",
-              marginBottom: "2px"
+              marginBottom: "2px",
+              fontWeight: 500
             }}>
               Total Resorts
             </div>
             <div style={{
-              fontSize: "17px",
+              fontSize: "18px",
               fontWeight: "700",
               color: "#569fdfff"
             }}>
@@ -230,34 +233,30 @@ const DashboardView = () => {
         </div>
       </div>
 
-      {/* Main Content - Three Columns */}
-      <div
-        style={{
-          display: "flex",
-          gap: "12px",
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
+      {/* Middle Section - Charts Side by Side */}
+      <div style={{
+        display: "flex",
+        gap: "12px",
+        flex: 1,
+        minHeight: 0,
+      }}>
         {/* Bar Chart - Left */}
         <div
           style={{
-            flex: 1.2,
+            flex: 1.2, // Slightly reduced to make more space for pie chart
             backgroundColor: "#fff",
             borderRadius: "6px",
             boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-            padding: "10px",
+            padding: "12px",
             display: "flex",
             flexDirection: "column",
             minWidth: 0,
-            height: "75vh"
           }}
         >
           <h3 style={{
-            margin: "0 0 8px 0",
+            margin: "0 0 12px 0",
             color: "#333",
-            fontSize: "13px",
-            fontWeight: "600"
+            fontSize: "14px",
           }}>
             Resorts by Category
           </h3>
@@ -270,13 +269,13 @@ const DashboardView = () => {
                 <CartesianGrid strokeDasharray="1 2" stroke="#f0f0f0" vertical={false} />
                 <XAxis
                   dataKey="name"
-                  fontSize="10px"
+                  fontSize="13px"
                   tick={{ fill: '#666' }}
                   interval={0}
                   height={35}
                 />
                 <YAxis
-                  fontSize="10px"
+                  fontSize="12px"
                   tick={{ fill: '#666' }}
                   width={25}
                 />
@@ -290,7 +289,7 @@ const DashboardView = () => {
                     borderRadius: "4px",
                     border: "none",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                    fontSize: "11px",
+                    fontSize: "14px",
                     padding: "4px 6px"
                   }}
                 />
@@ -308,37 +307,42 @@ const DashboardView = () => {
           </div>
         </div>
 
-        {/* Pie Chart - Middle */}
+        {/* Pie Chart - Right - Bigger Circle */}
         <div
           style={{
-            flex: 0.8,
+            flex: 1, // Increased flex to give more space
             backgroundColor: "#fff",
             borderRadius: "6px",
             boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-            padding: "10px",
+            padding: "12px",
             display: "flex",
             flexDirection: "column",
             minWidth: 0,
-            height: "75vh"
           }}
         >
           <h3 style={{
-            margin: "0 0 8px 0",
+            margin: "0 0 12px 0",
             color: "#333",
-            fontSize: "13px",
-            fontWeight: "600"
+            fontSize: "14px",
           }}>
             Distribution
           </h3>
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px 0' // Added padding to give more vertical space
+          }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data}
                   cx="50%"
                   cy="50%"
-                  innerRadius={35}
-                  outerRadius={70}
+                  innerRadius={50} // Increased from 35
+                  outerRadius={90} // Increased from 70
                   paddingAngle={1}
                   dataKey="value"
                   onMouseEnter={handlePieEnter}
@@ -358,120 +362,98 @@ const DashboardView = () => {
             </ResponsiveContainer>
           </div>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '5px',
-            fontSize: '13px',
-            marginTop: '5px'
+            display: 'flex',
+            gap: '40px',
+            fontSize: '12px',
+            marginTop: '8px'
           }}>
             {data.slice(0, 4).map((item, index) => (
               <div key={index} style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px'
+                gap: '6px'
               }}>
                 <div style={{
-                  width: '13px',
-                  height: '13px',
+                  width: '12px',
+                  height: '12px',
                   backgroundColor: COLORS[index % COLORS.length],
                   borderRadius: '2px'
                 }}></div>
-                <span style={{ color: '#666', fontSize: "12px" }}>{item.name}</span>
+                <span style={{ color: '#666', fontSize: "14px" }}>{item.name}</span>
               </div>
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Distribution Models - Right - Single Column */}
+      {/* Bottom Section - Distribution Models */}
+      <div
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: "6px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+          padding: "12px",
+          height: "90px",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <h3 style={{
+          margin: "0 0 12px 0",
+          color: "#333",
+          fontSize: "14px",
+        }}>
+          Distribution Models
+        </h3>
         <div
           style={{
-            width: "180px",
-            flexShrink: 0,
-            display: "flex",
-            flexDirection: "column",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+            gap: "12px",
+            flex: 1,
           }}
         >
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "6px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-              padding: "10px",
-              height: "75vh",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <h3 style={{
-              margin: "0 0 12px 0",
-              color: "#333",
-              fontSize: "13px",
-              fontWeight: "600"
-            }}>
-              Distribution Models
-            </h3>
+          {[
+            { key: "streamer", label: "Streamer", color: "#1976d2" },
+            { key: "iptv", label: "IPTV", color: "#388e3c" },
+            { key: "analog", label: "Analog", color: "#f57c00" },
+            { key: "hybrid", label: "Hybrid", color: "#c2185b" },
+          ].map((model) => (
             <div
+              key={model.key}
               style={{
+                backgroundColor: "#fafafa",
+                borderRadius: "4px",
+                padding: "12px",
+                borderLeft: `3px solid ${model.color}`,
                 display: "flex",
                 flexDirection: "column",
-                gap: "8px",
-                flex: 1,
+                justifyContent: "center",
               }}
             >
-              {[
-                { key: "streamer", label: "Streamer", color: "#1976d2" },
-                { key: "iptv", label: "IPTV", color: "#388e3c" },
-                { key: "analog", label: "Analog", color: "#f57c00" },
-                { key: "hybrid", label: "Hybrid", color: "#c2185b" },
-              ].map((model) => (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div
-                  key={model.key}
                   style={{
-                    backgroundColor: "#fafafa",
-                    borderRadius: "4px",
-                    padding: "10px",
-                    borderLeft: `3px solid ${model.color}`,
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    flex: 1,
-                    minHeight: "60px",
+                    fontSize: "15px",
+                    color: "#666",
+                    fontWeight: "600",
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div
-                      style={{
-                        fontSize: "14px",
-                        color: "#666",
-                        fontWeight: "600",
-                      }}
-                    >
-                      {model.label}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "17px",
-                        fontWeight: "700",
-                        color: model.color,
-                        lineHeight: "1",
-                      }}
-                    >
-                      {distributionStats[model.key]}
-                    </div>
-                  </div>
-                  {/* <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#999",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {((distributionStats[model.key] / totalResorts) * 100).toFixed(1)}% of total
-                  </div> */}
+                  {model.label}
                 </div>
-              ))}
+                <div
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: "700",
+                    color: model.color,
+                    lineHeight: "1",
+                  }}
+                >
+                  {distributionStats[model.key]}
+                </div>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

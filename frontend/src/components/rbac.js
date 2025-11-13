@@ -101,28 +101,30 @@ const Rbac = () => {
             </div>
 
             <Paper sx={{ height: "84vh", overflow: "auto" }}>
-                <Table>
+                <Table sx={{ tableLayout: "fixed" }}>
                     <TableHead>
                         <TableRow>
-                            <TableCell className="table-header" sx={{ width: "15vw" }}>Name</TableCell>
-                            <TableCell className="table-header" sx={{ width: "23vw" }}>Email</TableCell>
-                            <TableCell className="table-header" sx={{ width: "14vw" }}>Role</TableCell>
+                            <TableCell className="table-header" sx={{ width: "8%" }}>No.</TableCell>
+                            <TableCell className="table-header" sx={{ width: "25%" }}>Name</TableCell>
+                            <TableCell className="table-header" sx={{ width: "35%" }}>Email</TableCell>
+                            <TableCell className="table-header" sx={{ width: "20%" }}>Role</TableCell>
                             {canAccess("rbacManagement", "edit") && (
-                                <TableCell className="table-header" sx={{ width: "9vw" }}>Actions</TableCell>
+                                <TableCell className="table-header" sx={{ width: "10%" }}>Actions</TableCell>
                             )}
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {users.map((user) => (
+                        {users.map((user, index) => (
                             <TableRow key={user.login_id}>
-                                <TableCell>{user.user_name}</TableCell>
-                                <TableCell>{user.email}</TableCell>
-                                <TableCell>{user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : ""}</TableCell>
+                                <TableCell sx={{ width: "8%" }}>{index + 1}</TableCell>
+                                <TableCell sx={{ width: "25%" }}>{user.user_name}</TableCell>
+                                <TableCell sx={{ width: "35%" }}>{user.email}</TableCell>
+                                <TableCell sx={{ width: "20%" }}>{user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : ""}</TableCell>
                                 {canAccess("rbacManagement", "edit") && (
-                                    <TableCell>
+                                    <TableCell sx={{ width: "10%" }}>
                                         <Tooltip title="Actions" arrow>
                                             <IconButton onClick={(e) => handleMenuOpen(e, user.login_id)}>
-                                                <MoreVertIcon fontSize="small" />
+                                                <MoreVertIcon />
                                             </IconButton>
                                         </Tooltip>
 

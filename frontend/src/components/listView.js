@@ -529,7 +529,7 @@ const ListView = () => {
         <TextField
           variant="outlined"
           size="small"
-          placeholder="Search by resort name..."
+          placeholder="Search by resort name"
           value={searchTerm}
           onChange={handleSearchChange}
           className="mui-search-input"

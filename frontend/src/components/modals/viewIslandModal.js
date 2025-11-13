@@ -24,19 +24,29 @@ import {
 const ViewIslandDialog = ({ viewDialogOpen, setViewDialogOpen, viewIsland }) => {
     const [shake, setShake] = useState(false);
 
-    // Format timestamp
+    // Format timestamp with Indian/Maldives timezone - alternative robust version
     const formatTimestamp = (timestamp) => {
         if (!timestamp) return 'N/A';
-        const date = new Date(timestamp);
-        return date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-        });
+        try {
+            const date = new Date(timestamp);
+
+            // Use Intl.DateTimeFormat for more reliable timezone conversion
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'Indian/Maldives',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+
+            return formatter.format(date);
+        } catch (error) {
+            console.error('Error formatting timestamp:', error);
+            return 'Invalid Date';
+        }
     };
 
     // Format register names display

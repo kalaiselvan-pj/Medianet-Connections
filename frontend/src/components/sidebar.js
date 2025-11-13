@@ -16,6 +16,12 @@ import { canAccess } from "../rbac/canAccess";
 import medianetLogo from "../assets/medianet_transparent_logo.png";
 import BusinessIcon from '@mui/icons-material/Business';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
+import {
+  Dialog,
+  DialogTitle,
+  DialogActions,
+  Button
+} from "@mui/material";
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -23,10 +29,21 @@ const Sidebar = () => {
   const { logout } = useAuth();
   const [isResortsOpen, setIsResortsOpen] = useState(false);
   const [isHitsOpen, setIsHitsOpen] = useState(false);
+  const [openLogoutDialog, setOpenLogoutDialog] = useState(false);
+  const [shake, setShake] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setOpenLogoutDialog(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setOpenLogoutDialog(false);
     logout();
     navigate("/login", { replace: true });
+  };
+
+  const handleLogoutCancel = () => {
+    setOpenLogoutDialog(false);
   };
 
   // helper to check if path is active
@@ -64,6 +81,9 @@ const Sidebar = () => {
     }
   }, [location.pathname]);
 
+  // Check if user has access to any Resorts submenu items
+  const hasResortsAccess = canAccess("resortList", "view") || canAccess("resortIncidents", "view") || canAccess("streamerConfig", "view");
+
   // Check if user has access to any HITS submenu items
   const hasHitsAccess = canAccess("bpDetails", "view") || canAccess("islandInformations", "view");
 
@@ -72,7 +92,20 @@ const Sidebar = () => {
       <div className="sidebar-content">
         <div className="menulist-sticky">
           <img src={medianetLogo} alt="Medianet Logo" className="mdn-logo" />
-          <h2 style={{ textAlign: "center", marginBottom: "20px", marginTop: "6px" }}>Islands Connection</h2>
+          <h2
+            style={{
+              textAlign: "center",
+              marginBottom: "20px",
+              marginTop: "6px",
+              background: "linear-gradient(179deg, rgb(255 255 255 / 88%), rgb(192 192 192 / 35%)) text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              fontWeight: "bold",
+              fontSize: "23px"
+            }}
+          >
+            Island Reports
+          </h2>
         </div>
 
         <div className="menubar">
@@ -83,54 +116,56 @@ const Sidebar = () => {
               </button>
             )}
 
-            {/* Resorts Dropdown Section */}
-            <div className="resorts-dropdown">
-              <button
-                onClick={toggleResorts}
-                className={`lhs_button resorts-main-button ${isResortActive() ? "active" : ""}`}
-              >
-                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                  <span style={{ display: "flex", alignItems: "center" }}>
-                    <BusinessIcon className="lhs-icons" /> Resorts
+            {/* Resorts Dropdown Section - Only show if user has access to at least one Resorts item */}
+            {hasResortsAccess && (
+              <div className="resorts-dropdown">
+                <button
+                  onClick={toggleResorts}
+                  className={`lhs_button resorts-main-button ${isResortActive() ? "active" : ""}`}
+                >
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                    <span style={{ display: "flex", alignItems: "center" }}>
+                      <BusinessIcon className="lhs-icons" /> Resorts
+                    </span>
+                    {isResortsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                   </span>
-                  {isResortsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                </span>
-              </button>
+                </button>
 
-              {isResortsOpen && (
-                <div className="resorts-submenu">
-                  {canAccess("resortList", "view") && (
-                    <button
-                      onClick={() => navigate("/listview")}
-                      className={`lhs_button submenu-button ${isActive("/listview") ? "active" : ""}`}
-                    >
-                      <ListIcon className="submenu-icon" />
-                      Resorts List View
-                    </button>
-                  )}
+                {isResortsOpen && (
+                  <div className="resorts-submenu">
+                    {canAccess("resortList", "view") && (
+                      <button
+                        onClick={() => navigate("/listview")}
+                        className={`lhs_button submenu-button ${isActive("/listview") ? "active" : ""}`}
+                      >
+                        <ListIcon className="submenu-icon" />
+                        Resorts List View
+                      </button>
+                    )}
 
-                  {canAccess("resortIncidents", "view") && (
-                    <button
-                      onClick={() => navigate("/resort-incidents")}
-                      className={`lhs_button submenu-button ${isActive("/resort-incidents") ? "active" : ""}`}
-                    >
-                      <ReportProblemIcon className="submenu-icon" />
-                      Resort Incident Reports
-                    </button>
-                  )}
+                    {canAccess("resortIncidents", "view") && (
+                      <button
+                        onClick={() => navigate("/resort-incidents")}
+                        className={`lhs_button submenu-button ${isActive("/resort-incidents") ? "active" : ""}`}
+                      >
+                        <ReportProblemIcon className="submenu-icon" />
+                        Resort Incident Reports
+                      </button>
+                    )}
 
-                  {canAccess("streamerConfig", "view") && (
-                    <button
-                      onClick={() => navigate("/upload-streamer-config")}
-                      className={`lhs_button submenu-button ${isActive("/upload-streamer-config") ? "active" : ""}`}
-                    >
-                      <CloudUploadIcon className="submenu-icon" />
-                      Streamer Configuration
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+                    {canAccess("streamerConfig", "view") && (
+                      <button
+                        onClick={() => navigate("/upload-streamer-config")}
+                        className={`lhs_button submenu-button ${isActive("/upload-streamer-config") ? "active" : ""}`}
+                      >
+                        <CloudUploadIcon className="submenu-icon" />
+                        Streamer Configuration
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* HITS Dropdown Section - Only show if user has access to at least one HITS item */}
             {hasHitsAccess && (
@@ -182,12 +217,41 @@ const Sidebar = () => {
         </div>
 
         <div className="logoutbutton">
-          <button onClick={handleLogout} className="logout-btn">
+          <button onClick={handleLogoutClick} className="logout-btn">
             <LogoutIcon style={{ fontSize: "20px" }} />
             Logout
           </button>
         </div>
       </div>
+
+      {/* LOGOUT CONFIRMATION DIALOG */}
+      <Dialog
+        open={openLogoutDialog}
+        onClose={(event, reason) => {
+          if (reason === "backdropClick" || reason === "escapeKeyDown") {
+            setShake(true);
+            setTimeout(() => setShake(false), 500);
+            return;
+          }
+          handleLogoutCancel();
+        }}
+        PaperProps={{ sx: { animation: shake ? "shake 0.5s" : "none" } }}
+      >
+        <style>{`
+          @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            50% { transform: translateX(8px); }
+            75% { transform: translateX(-8px); }
+            100% { transform: translateX(0); }
+          }
+        `}</style>
+        <DialogTitle>Are you sure you want to logout?</DialogTitle>
+        <DialogActions>
+          <Button onClick={handleLogoutCancel} color="primary">Cancel</Button>
+          <Button onClick={handleLogoutConfirm} color="error">Logout</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
